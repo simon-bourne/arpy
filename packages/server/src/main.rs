@@ -151,8 +151,20 @@ async fn handler(
 
     // TODO: Better logging and error reporting
     let content_type = headers
-        .get(ACCEPT).map(|e| {println!("Missing accept"); e})
-        .and_then(|value| value.to_str().map_err(|e| {println!("Bad accept"); e}).ok())
+        .get(ACCEPT)
+        .map(|e| {
+            println!("Missing accept");
+            e
+        })
+        .and_then(|value| {
+            value
+                .to_str()
+                .map_err(|e| {
+                    println!("Bad accept");
+                    e
+                })
+                .ok()
+        })
         .and_then(MimeType::from_str)
         .ok_or(StatusCode::UNSUPPORTED_MEDIA_TYPE)?;
 
