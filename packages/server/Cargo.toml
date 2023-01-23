@@ -1,0 +1,11 @@
+[package]
+name = "rpc-server"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = { version = "0.6.3", features = ["ws", "headers"] }
+ciborium = "0.2.0"
+hyper = "0.14.23"
+serde = { version = "1.0.152", features = ["derive"] }
+tokio = { version = "1.21.2", features = ["full"] }
