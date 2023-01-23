@@ -36,7 +36,6 @@ trait Rpc {
 enum MimeType {
     CBor,
     Json,
-    UrlEncoded,
 }
 
 impl MimeType {
@@ -44,7 +43,6 @@ impl MimeType {
         match s {
             "application/cbor" => Some(Self::CBor),
             "application/json" => Some(Self::Json),
-            "application/x-www-form-urlencoded" => Some(Self::UrlEncoded),
             _ => None,
         }
     }
@@ -76,7 +74,6 @@ impl MimeType {
                     .body(boxed(Full::from(body)))
                     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
             }
-            Self::UrlEncoded => todo!(),
         }
     }
 }
