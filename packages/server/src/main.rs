@@ -34,14 +34,14 @@ trait Rpc {
 
 #[derive(Copy, Clone)]
 enum MimeType {
-    CBor,
+    Cbor,
     Json,
 }
 
 impl MimeType {
     fn from_str(s: &str) -> Option<Self> {
         match s {
-            "application/cbor" => Some(Self::CBor),
+            "application/cbor" => Some(Self::Cbor),
             "application/json" => Some(Self::Json),
             _ => None,
         }
@@ -49,7 +49,7 @@ impl MimeType {
 
     fn serve<'a, T: Rpc + Deserialize<'a>>(self, data: &'a [u8]) -> Result<Response, StatusCode> {
         match self {
-            Self::CBor => {
+            Self::Cbor => {
                 let result =
                     ciborium::de::from_reader(data).map_err(|_| StatusCode::BAD_REQUEST)?;
 
