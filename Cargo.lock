@@ -573,6 +573,7 @@ dependencies = [
  "ciborium",
  "hyper",
  "serde",
+ "serde_json",
  "tokio",
 ]
 

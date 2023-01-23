@@ -62,11 +62,20 @@ impl MimeType {
 
                 Response::builder()
                     .header(CONTENT_TYPE, "application/cbor")
-                    .status(StatusCode::OK)
                     .body(boxed(Full::from(body)))
                     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
             }
-            Self::Json => todo!(),
+            Self::Json => {
+                let result = serde_json::from_slice(data).map_err(|_| StatusCode::BAD_REQUEST)?;
+
+                let body =
+                    serde_json::to_vec(&T::serve(&result)).map_err(|_| StatusCode::BAD_REQUEST)?;
+
+                Response::builder()
+                    .header(CONTENT_TYPE, "application/json")
+                    .body(boxed(Full::from(body)))
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+            }
             Self::UrlEncoded => todo!(),
         }
     }
