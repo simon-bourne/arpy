@@ -1,3 +1,5 @@
+use std::{thread, time::Duration};
+
 use async_trait::async_trait;
 use axum::{
     body::{boxed, Body, Full},
@@ -27,27 +29,33 @@ trait Rpc {
     type ResultType: Serialize;
 
     // TODO: Error types
-    async fn call(&self) -> Result<Self::ResultType, ()>
+    async fn call(&self) -> Result<Self::ResultType, &'static str>
     where
         Self: Serialize,
         Self::ResultType: for<'a> Deserialize<'a>,
     {
         let mut body = Vec::new();
 
-        ciborium::ser::into_writer(self, &mut body).map_err(|_| ())?;
+        ciborium::ser::into_writer(self, &mut body).map_err(|_| "Error serializing")?;
 
+        // TODO: Accept and content_type headers
         // TODO: Pass in client, wrapped in something.
         let client = reqwest::Client::new();
         let result = client
-            .post("http://127.0.0.1:9090")
-            .header(CONTENT_TYPE, "application/cbor")
+            .post("http://127.0.0.1:9090/api/add")
+            .header(ACCEPT, "application/cbor")
             .body(body)
             .send()
             .await
-            .map_err(|_| ())?;
-        let result: Self::ResultType =
-            ciborium::de::from_reader(result.bytes().await.map_err(|_| ())?.as_ref())
-                .map_err(|_| ())?;
+            .map_err(|_| "Error sending request")?;
+
+        println!("{}", result.status());
+        let result_bytes = result
+            .bytes()
+            .await
+            .map_err(|_| "Error receiving response")?;
+        let result: Self::ResultType = ciborium::de::from_reader(result_bytes.as_ref())
+            .map_err(|_| "Error deserializing response")?;
 
         Ok(result)
     }
@@ -107,8 +115,26 @@ impl MimeType {
     }
 }
 
+fn main() {
+    thread::scope(|scope| {
+        scope.spawn(server);
+        scope.spawn(|| {
+            thread::sleep(Duration::from_secs(1));
+            client();
+        });
+    });
+}
+
 #[tokio::main]
-async fn main() {
+async fn client() {
+    println!(
+        "{}",
+        Add(1, 2).call().await.map_err(|e| println!("{e}")).unwrap()
+    );
+}
+
+#[tokio::main]
+async fn server() {
     let app = Router::new().route("/api/:function", post(handler));
     Server::bind(&"0.0.0.0:9090".parse().unwrap())
         .serve(app.into_make_service())
@@ -123,9 +149,10 @@ async fn handler(
 ) -> Result<impl IntoResponse, StatusCode> {
     println!("Function: {function}");
 
+    // TODO: Better logging and error reporting
     let content_type = headers
-        .get(ACCEPT)
-        .and_then(|value| value.to_str().ok())
+        .get(ACCEPT).map(|e| {println!("Missing accept"); e})
+        .and_then(|value| value.to_str().map_err(|e| {println!("Bad accept"); e}).ok())
         .and_then(MimeType::from_str)
         .ok_or(StatusCode::UNSUPPORTED_MEDIA_TYPE)?;
 
