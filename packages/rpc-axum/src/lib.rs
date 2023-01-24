@@ -22,19 +22,15 @@ async fn handler<T: RemoteFn>(
 ) -> Result<impl IntoResponse, StatusCode> {
     let response_type = mime_type(headers.get(ACCEPT))?;
 
-    let (_header, body) = request.into_parts();
-    let body = body::to_bytes(body)
+    let body = body::to_bytes(request.into_body())
         .await
         .map_err(|_| StatusCode::PARTIAL_CONTENT)?;
-
-    let data = body.as_ref();
-
-    // TODO: Read from
+    let body = body.as_ref();
     let content_type = mime_type(headers.get(CONTENT_TYPE))?;
 
     let thunk: T = match content_type {
-        MimeType::Cbor => ciborium::de::from_reader(data).map_err(|_| StatusCode::BAD_REQUEST)?,
-        MimeType::Json => serde_json::from_slice(data).map_err(|_| StatusCode::BAD_REQUEST)?,
+        MimeType::Cbor => ciborium::de::from_reader(body).map_err(|_| StatusCode::BAD_REQUEST)?,
+        MimeType::Json => serde_json::from_slice(body).map_err(|_| StatusCode::BAD_REQUEST)?,
     };
 
     match response_type {
