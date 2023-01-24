@@ -36,8 +36,8 @@ impl RemoteFn for TryMultiply {
 
 #[tokio::test]
 async fn fallible_call() {
-    end_to_end_test(async {
-        let result = client("add").call(&Add(2, 3)).await.unwrap();
+    end_to_end_test(|port| async move {
+        let result = client(port, "add").call(&Add(2, 3)).await.unwrap();
         assert_eq!(result, 5);
     })
     .await
@@ -45,8 +45,8 @@ async fn fallible_call() {
 
 #[tokio::test]
 async fn infallible_call() {
-    end_to_end_test(async {
-        let result = client("multiply")
+    end_to_end_test(|port| async move {
+        let result = client(port, "multiply")
             .try_call(&TryMultiply(2, 3))
             .await
             .unwrap();
@@ -55,21 +55,27 @@ async fn infallible_call() {
     .await
 }
 
-fn client(function: &str) -> Connection {
+fn client(port: u16, function: &str) -> Connection {
     Connection::new(
         &reqwest::Client::new(),
-        format!("http://127.0.0.1:9090/api/{function}"),
+        format!("http://127.0.0.1:{port}/api/{function}"),
     )
 }
 
-async fn end_to_end_test(client: impl Future<Output = ()>) {
-    let listener = Server::bind(&SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 9090));
+async fn end_to_end_test<Client, Block>(client: Client)
+where
+    Client: FnOnce(u16) -> Block,
+    Block: Future<Output = ()>,
+{
     let app = Router::new()
         .route("/api/add", handle_rpc::<Add>())
         .route("/api/multiply", handle_rpc::<TryMultiply>());
-    listener
-        .serve(app.into_make_service())
-        .with_graceful_shutdown(client)
-        .await
-        .unwrap();
+
+    let server = Server::bind(&SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0))
+        .serve(app.into_make_service());
+    let port = match server.local_addr() {
+        SocketAddr::V4(addr) => addr.port(),
+        SocketAddr::V6(_) => panic!("IPv6 address"),
+    };
+    server.with_graceful_shutdown(client(port)).await.unwrap();
 }
