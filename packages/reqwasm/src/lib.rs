@@ -1,3 +1,5 @@
+use std::fmt::{Debug, Display};
+
 use async_trait::async_trait;
 use js_sys::Uint8Array;
 use reqwasm::http;
@@ -19,11 +21,25 @@ pub enum Error {
     #[error("Couldn't deserialize result: {0}")]
     DeserializeResult(String),
     #[error("Couldn't send request: {0}")]
-    Send(reqwasm::Error),
+    Send(String),
     #[error("Couldn't receive response: {0}")]
-    Receive(reqwasm::Error),
+    Receive(String),
     #[error("Invalid response 'content_type'")]
     InvalidResponseType(String),
+}
+
+impl Error {
+    fn send(e: impl Display) -> Self {
+        Self::Send(e.to_string())
+    }
+
+    fn receive(e: impl Display) -> Self {
+        Self::Receive(e.to_string())
+    }
+
+    fn deserialize_result(e: impl Display) -> Self {
+        Self::DeserializeResult(e.to_string())
+    }
 }
 
 #[async_trait(?Send)]
@@ -48,7 +64,7 @@ impl RpcClient for HttpRequest {
             .body(js_body)
             .send()
             .await
-            .map_err(Error::Send)?;
+            .map_err(Error::send)?;
 
         if let Some(result_type) = result.headers().get(CONTENT_TYPE) {
             if result_type != content_type.as_str() {
@@ -56,9 +72,9 @@ impl RpcClient for HttpRequest {
             }
         }
 
-        let result_bytes = result.binary().await.map_err(Error::Receive)?;
+        let result_bytes = result.binary().await.map_err(Error::receive)?;
         let result: F::ResultType = ciborium::de::from_reader(result_bytes.as_slice())
-            .map_err(|e| Error::DeserializeResult(e.to_string()))?;
+            .map_err(Error::deserialize_result)?;
 
         Ok(result)
     }
