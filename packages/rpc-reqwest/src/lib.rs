@@ -1,6 +1,9 @@
 use async_trait::async_trait;
-use reqwest::{header::ACCEPT, Client};
-use rpc::{RemoteFn, RpcClient, MimeType};
+use reqwest::{
+    header::{HeaderValue, ACCEPT, CONTENT_TYPE},
+    Client,
+};
+use rpc::{MimeType, RemoteFn, RpcClient};
 use thiserror::Error;
 
 pub struct Connection(reqwest::RequestBuilder);
@@ -15,10 +18,12 @@ impl Connection {
 pub enum Error {
     #[error("Couldn't deserialize result: {0}")]
     DeserializeResult(String),
-    #[error("Error sending request: {0}")]
+    #[error("Couldn't send request: {0}")]
     Send(reqwest::Error),
-    #[error("Error receiving response: {0}")]
+    #[error("Couldn't receive response: {0}")]
     Receive(reqwest::Error),
+    #[error("Invalid response 'content_type'")]
+    InvalidResponseType(HeaderValue),
 }
 
 #[async_trait]
@@ -30,20 +35,26 @@ impl RpcClient for Connection {
         F: RemoteFn,
         &'a F: Send,
     {
+        let content_type = MimeType::Cbor;
         let mut body = Vec::new();
 
         ciborium::ser::into_writer(&function, &mut body).unwrap();
 
-        // TODO: Accept and content_type headers
         let result = self
             .0
-            .header(ACCEPT, MimeType::Cbor.as_str())
+            .header(CONTENT_TYPE, content_type.as_str())
+            .header(ACCEPT, content_type.as_str())
             .body(body)
             .send()
             .await
             .map_err(Error::Send)?;
 
-        println!("{}", result.status());
+        if let Some(result_type) = result.headers().get(CONTENT_TYPE) {
+            if result_type != HeaderValue::from_static(content_type.as_str()) {
+                return Err(Error::InvalidResponseType(result_type.clone()));
+            }
+        }
+
         let result_bytes = result.bytes().await.map_err(Error::Receive)?;
         let result: F::ResultType = ciborium::de::from_reader(result_bytes.as_ref())
             .map_err(|e| Error::DeserializeResult(e.to_string()))?;
