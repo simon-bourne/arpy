@@ -1,4 +1,4 @@
-use std::{thread, time::Duration};
+use std::{thread, time::Duration, net::SocketAddr};
 
 use async_trait::async_trait;
 use axum::{Router, Server};
@@ -39,7 +39,7 @@ async fn client() {
 #[tokio::main]
 async fn server() {
     let app = Router::new().route("/api/add", handle_rpc::<Add>());
-    Server::bind(&"0.0.0.0:9090".parse().unwrap())
+    Server::bind(&SocketAddr::from(([0, 0, 0, 0], 9090)))
         .serve(app.into_make_service())
         .await
         .unwrap();
