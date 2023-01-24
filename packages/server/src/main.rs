@@ -15,33 +15,44 @@ use serde::{Deserialize, Serialize};
 struct Add(i32, i32);
 
 #[async_trait]
-impl Rpc for Add {
+impl RemoteFn for Add {
     type ResultType = i32;
 
-    async fn serve(&self) -> Self::ResultType {
+    async fn run(&self) -> Self::ResultType {
         self.0 + self.1
     }
 }
 
+// TODO: `RemoteFallibleFn`, 
 #[async_trait]
-trait Rpc: for<'a> Deserialize<'a> {
-    type ResultType: Serialize;
+pub trait RemoteFn: Serialize + for<'a> Deserialize<'a> {
+    type ResultType: Serialize + for<'a> Deserialize<'a>;
 
-    // TODO: Error types
-    async fn call(&self) -> Result<Self::ResultType, &'static str>
+    async fn run(&self) -> Self::ResultType;
+}
+
+#[async_trait]
+pub trait RpcClient {
+    async fn call<'a, F>(self, function: &'a F) -> Result<F::ResultType, &'static str>
     where
-        Self: Serialize,
-        Self::ResultType: for<'a> Deserialize<'a>,
+        F: RemoteFn,
+        &'a F: Send;
+}
+
+#[async_trait]
+impl RpcClient for reqwest::RequestBuilder {
+    async fn call<'a, F>(self, function: &'a F) -> Result<F::ResultType, &'static str>
+    where
+        F: RemoteFn,
+        &'a F: Send,
     {
         let mut body = Vec::new();
 
-        ciborium::ser::into_writer(self, &mut body).map_err(|_| "Error serializing")?;
+        ciborium::ser::into_writer(&function, &mut body).map_err(|_| "Error serializing")?;
 
         // TODO: Accept and content_type headers
         // TODO: Pass in client, wrapped in something.
-        let client = reqwest::Client::new();
-        let result = client
-            .post("http://127.0.0.1:9090/api/add")
+        let result = self
             .header(ACCEPT, "application/cbor")
             .body(body)
             .send()
@@ -53,14 +64,11 @@ trait Rpc: for<'a> Deserialize<'a> {
             .bytes()
             .await
             .map_err(|_| "Error receiving response")?;
-        let result: Self::ResultType = ciborium::de::from_reader(result_bytes.as_ref())
+        let result: F::ResultType = ciborium::de::from_reader(result_bytes.as_ref())
             .map_err(|_| "Error deserializing response")?;
 
         Ok(result)
     }
-
-    // TODO: `serve_fallible`
-    async fn serve(&self) -> Self::ResultType;
 }
 
 #[derive(Copy, Clone)]
@@ -93,10 +101,9 @@ fn main() {
 
 #[tokio::main]
 async fn client() {
-    println!(
-        "{}",
-        Add(1, 2).call().await.map_err(|e| println!("{e}")).unwrap()
-    );
+    let client = reqwest::Client::new().post("http://127.0.0.1:9090/api/add");
+    let result = client.call(&Add(1, 2)).await;
+    println!("{}", result.map_err(|e| println!("{e}")).unwrap());
 }
 
 #[tokio::main]
@@ -108,21 +115,17 @@ async fn server() {
         .unwrap();
 }
 
-fn rpc<T: Rpc>() -> MethodRouter {
+fn rpc<T: RemoteFn>() -> MethodRouter {
     post(handler::<Add>)
 }
 
-async fn handler<T: Rpc>(
+async fn handler<T: RemoteFn>(
     headers: HeaderMap,
     request: Request<Body>,
 ) -> Result<impl IntoResponse, StatusCode> {
     // TODO: Better logging and error reporting
     let content_type = headers
         .get(ACCEPT)
-        .map(|e| {
-            println!("Missing accept");
-            e
-        })
         .and_then(|value| {
             value
                 .to_str()
@@ -148,7 +151,7 @@ async fn handler<T: Rpc>(
 
             let mut body = Vec::new();
 
-            ciborium::ser::into_writer(&T::serve(&result).await, &mut body)
+            ciborium::ser::into_writer(&T::run(&result).await, &mut body)
                 .map_err(|_| StatusCode::BAD_REQUEST)?;
 
             Response::builder()
@@ -159,8 +162,8 @@ async fn handler<T: Rpc>(
         MimeType::Json => {
             let result = serde_json::from_slice(data).map_err(|_| StatusCode::BAD_REQUEST)?;
 
-            let body = serde_json::to_vec(&T::serve(&result).await)
-                .map_err(|_| StatusCode::BAD_REQUEST)?;
+            let body =
+                serde_json::to_vec(&T::run(&result).await).map_err(|_| StatusCode::BAD_REQUEST)?;
 
             Response::builder()
                 .header(CONTENT_TYPE, "application/json")
