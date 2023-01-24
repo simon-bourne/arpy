@@ -59,7 +59,7 @@ async fn handler<T: RemoteFn>(
                 .map_err(|_| StatusCode::BAD_REQUEST)?;
 
             Response::builder()
-                .header(CONTENT_TYPE, "application/cbor")
+                .header(CONTENT_TYPE, MimeType::Cbor.as_str())
                 .body(boxed(Full::from(body)))
                 .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
         }

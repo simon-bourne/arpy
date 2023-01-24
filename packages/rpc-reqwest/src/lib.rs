@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use reqwest::{header::ACCEPT, Client};
-use rpc::{RemoteFn, RpcClient};
+use rpc::{RemoteFn, RpcClient, MimeType};
 use thiserror::Error;
 
 pub struct Connection(reqwest::RequestBuilder);
@@ -37,7 +37,7 @@ impl RpcClient for Connection {
         // TODO: Accept and content_type headers
         let result = self
             .0
-            .header(ACCEPT, "application/cbor")
+            .header(ACCEPT, MimeType::Cbor.as_str())
             .body(body)
             .send()
             .await
