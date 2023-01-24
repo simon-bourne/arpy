@@ -12,3 +12,4 @@ axum = { version = "0.6.3", features = ["ws", "headers"] }
 reqwest = "0.11.14"
 serde = { version = "1.0.152", features = ["derive"] }
 tokio = { version = "1.21.2", features = ["full"] }
+hyper = "0.14.23"
