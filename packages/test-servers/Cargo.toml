@@ -1,15 +1,15 @@
 [package]
-name = "rpc-integration-tests"
+name = "rpc-test-servers"
 version = "0.1.0"
 edition = "2021"
+publish = false
 
-[dev-dependencies]
+[dependencies]
 rpc = { path = "../rpc" }
 rpc-axum = { path = "../axum" }
-rpc-reqwest = { path = "../reqwest" }
+rpc-test-data = { path = "../test-data" }
 async-trait = "0.1.63"
 axum = { version = "0.6.3", features = ["ws", "headers"] }
-reqwest = "0.11.14"
 serde = { version = "1.0.152", features = ["derive"] }
 tokio = { version = "1.21.2", features = ["full"] }
 hyper = "0.14.23"

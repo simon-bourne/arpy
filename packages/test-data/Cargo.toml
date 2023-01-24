@@ -1,0 +1,10 @@
+[package]
+name = "rpc-test-data"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+rpc = { path = "../rpc" }
+async-trait = "0.1.63"
+serde = { version = "1.0.152", features = ["derive"] }
