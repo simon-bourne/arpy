@@ -1,12 +1,12 @@
 use async_trait::async_trait;
 use reqwest::{
     header::{HeaderValue, ACCEPT, CONTENT_TYPE},
-    Client, IntoUrl,
+    Client, IntoUrl, RequestBuilder,
 };
 use rpc::{MimeType, RemoteFn, RpcClient};
 use thiserror::Error;
 
-pub struct Connection(reqwest::RequestBuilder);
+pub struct Connection(RequestBuilder);
 
 impl Connection {
     pub fn new(client: &Client, url: impl IntoUrl) -> Self {
