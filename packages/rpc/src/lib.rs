@@ -2,8 +2,8 @@ use std::str::FromStr;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
-// TODO: Return error. Use an Ok and an Error associated type.
 #[async_trait]
 pub trait RemoteFn: Send + Serialize + for<'a> Deserialize<'a> {
     type ResultType: Serialize + for<'a> Deserialize<'a>;
@@ -11,9 +11,13 @@ pub trait RemoteFn: Send + Serialize + for<'a> Deserialize<'a> {
     async fn run(&self) -> Self::ResultType;
 }
 
-// TODO: Message trait, with `send` on `RpcClient`.
-// TODO: Subscribe trait? Like call, but keeps receiving responses. Integration
-// with Streams?
+#[derive(Error, Debug)]
+pub enum ErrorFrom<C, S> {
+    #[error("Connection: {0}")]
+    Connection(C),
+    #[error("Server: {0}")]
+    Server(S),
+}
 
 #[async_trait]
 pub trait RpcClient {
@@ -23,6 +27,24 @@ pub trait RpcClient {
     where
         F: RemoteFn,
         &'a F: Send;
+
+    async fn try_call<F, Success, Error>(
+        self,
+        function: &F,
+    ) -> Result<Success, ErrorFrom<Self::Error, Error>>
+    where
+        Self: Sized,
+        F: RemoteFn<ResultType = Result<Success, Error>>,
+        for<'a> &'a F: Send,
+        Success: Send,
+        Error: Send,
+    {
+        match self.call(function).await {
+            Ok(Ok(ok)) => Ok(ok),
+            Ok(Err(e)) => Err(ErrorFrom::Server(e)),
+            Err(e) => Err(ErrorFrom::Connection(e)),
+        }
+    }
 }
 
 #[derive(Copy, Clone)]

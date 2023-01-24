@@ -33,7 +33,7 @@ fn main() {
 async fn client() {
     let client = Connection::new(&reqwest::Client::new(), "http://127.0.0.1:9090/api/add");
     let result = client.call(&Add(1, 2)).await;
-    println!("{}", result.map_err(|e| println!("{e}")).unwrap());
+    println!("{:?}", result);
 }
 
 #[tokio::main]
