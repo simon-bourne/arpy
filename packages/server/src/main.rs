@@ -3,7 +3,6 @@ use std::{thread, time::Duration};
 use async_trait::async_trait;
 use axum::{
     body::{boxed, Body, Full},
-    extract::Path,
     http::{header::ACCEPT, HeaderMap, Request, StatusCode},
     response::{IntoResponse, Response},
     routing::post,
@@ -135,7 +134,7 @@ async fn client() {
 
 #[tokio::main]
 async fn server() {
-    let app = Router::new().route("/api/:function", post(handler));
+    let app = Router::new().route("/api/add", post(handler));
     Server::bind(&"0.0.0.0:9090".parse().unwrap())
         .serve(app.into_make_service())
         .await
@@ -143,12 +142,9 @@ async fn server() {
 }
 
 async fn handler(
-    Path(function): Path<String>,
     headers: HeaderMap,
     request: Request<Body>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    println!("Function: {function}");
-
     // TODO: Better logging and error reporting
     let content_type = headers
         .get(ACCEPT)
@@ -173,8 +169,5 @@ async fn handler(
         .await
         .map_err(|_| StatusCode::PARTIAL_CONTENT)?;
 
-    match function.as_str() {
-        "add" => content_type.serve::<Add>(body.as_ref()).await,
-        _ => Err(StatusCode::NOT_FOUND),
-    }
+    content_type.serve::<Add>(body.as_ref()).await
 }
