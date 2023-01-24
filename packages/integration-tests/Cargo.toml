@@ -1,12 +1,12 @@
 [package]
-name = "rpc-server"
+name = "rpc-integration-tests"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 rpc = { path = "../rpc" }
-rpc-axum = { path = "../rpc-axum" }
-rpc-reqwest = { path = "../rpc-reqwest" }
+rpc-axum = { path = "../axum" }
+rpc-reqwest = { path = "../reqwest" }
 async-trait = "0.1.63"
 axum = { version = "0.6.3", features = ["ws", "headers"] }
 reqwest = "0.11.14"

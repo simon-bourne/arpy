@@ -850,19 +850,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "rpc-reqwest"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "ciborium",
- "reqwest",
- "rpc",
- "serde",
- "thiserror",
-]
-
-[[package]]
-name = "rpc-server"
+name = "rpc-integration-tests"
 version = "0.1.0"
 dependencies = [
  "async-trait",
@@ -873,6 +861,18 @@ dependencies = [
  "rpc-reqwest",
  "serde",
  "tokio",
+]
+
+[[package]]
+name = "rpc-reqwest"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "ciborium",
+ "reqwest",
+ "rpc",
+ "serde",
+ "thiserror",
 ]
 
 [[package]]
