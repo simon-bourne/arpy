@@ -845,7 +845,6 @@ dependencies = [
  "rpc",
  "serde",
  "serde_json",
- "thiserror",
  "tokio",
 ]
 
