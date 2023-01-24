@@ -10,6 +10,7 @@ use axum::{
 };
 use hyper::{body, header::CONTENT_TYPE};
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 #[derive(Serialize, Deserialize)]
 struct Add(i32, i32);
@@ -23,7 +24,7 @@ impl RemoteFn for Add {
     }
 }
 
-// TODO: `RemoteFallibleFn`, 
+// TODO: `RemoteFallibleFn`,
 #[async_trait]
 pub trait RemoteFn: Serialize + for<'a> Deserialize<'a> {
     type ResultType: Serialize + for<'a> Deserialize<'a>;
@@ -33,22 +34,36 @@ pub trait RemoteFn: Serialize + for<'a> Deserialize<'a> {
 
 #[async_trait]
 pub trait RpcClient {
-    async fn call<'a, F>(self, function: &'a F) -> Result<F::ResultType, &'static str>
+    type Error;
+
+    async fn call<'a, F>(self, function: &'a F) -> Result<F::ResultType, Self::Error>
     where
         F: RemoteFn,
         &'a F: Send;
 }
 
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("Couldn't deserialize result: {0}")]
+    DeserializeResult(String),
+    #[error("Error sending request: {0}")]
+    Send(reqwest::Error),
+    #[error("Error receiving response: {0}")]
+    Receive(reqwest::Error),
+}
+
 #[async_trait]
 impl RpcClient for reqwest::RequestBuilder {
-    async fn call<'a, F>(self, function: &'a F) -> Result<F::ResultType, &'static str>
+    type Error = Error;
+
+    async fn call<'a, F>(self, function: &'a F) -> Result<F::ResultType, Self::Error>
     where
         F: RemoteFn,
         &'a F: Send,
     {
         let mut body = Vec::new();
 
-        ciborium::ser::into_writer(&function, &mut body).map_err(|_| "Error serializing")?;
+        ciborium::ser::into_writer(&function, &mut body).unwrap();
 
         // TODO: Accept and content_type headers
         // TODO: Pass in client, wrapped in something.
@@ -57,15 +72,12 @@ impl RpcClient for reqwest::RequestBuilder {
             .body(body)
             .send()
             .await
-            .map_err(|_| "Error sending request")?;
+            .map_err(Error::Send)?;
 
         println!("{}", result.status());
-        let result_bytes = result
-            .bytes()
-            .await
-            .map_err(|_| "Error receiving response")?;
+        let result_bytes = result.bytes().await.map_err(Error::Receive)?;
         let result: F::ResultType = ciborium::de::from_reader(result_bytes.as_ref())
-            .map_err(|_| "Error deserializing response")?;
+            .map_err(|e| Error::DeserializeResult(e.to_string()))?;
 
         Ok(result)
     }
