@@ -5,7 +5,7 @@ use axum::{
     body::{boxed, Body, Full},
     http::{header::ACCEPT, HeaderMap, Request, StatusCode},
     response::{IntoResponse, Response},
-    routing::post,
+    routing::{post, MethodRouter},
     Router, Server,
 };
 use hyper::{body, header::CONTENT_TYPE};
@@ -24,7 +24,7 @@ impl Rpc for Add {
 }
 
 #[async_trait]
-trait Rpc {
+trait Rpc: for<'a> Deserialize<'a> {
     type ResultType: Serialize;
 
     // TODO: Error types
@@ -79,39 +79,6 @@ impl MimeType {
             None
         }
     }
-
-    async fn serve<'a, T: Rpc + Deserialize<'a>>(
-        self,
-        data: &'a [u8],
-    ) -> Result<Response, StatusCode> {
-        match self {
-            Self::Cbor => {
-                let result =
-                    ciborium::de::from_reader(data).map_err(|_| StatusCode::BAD_REQUEST)?;
-
-                let mut body = Vec::new();
-
-                ciborium::ser::into_writer(&T::serve(&result).await, &mut body)
-                    .map_err(|_| StatusCode::BAD_REQUEST)?;
-
-                Response::builder()
-                    .header(CONTENT_TYPE, "application/cbor")
-                    .body(boxed(Full::from(body)))
-                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
-            }
-            Self::Json => {
-                let result = serde_json::from_slice(data).map_err(|_| StatusCode::BAD_REQUEST)?;
-
-                let body = serde_json::to_vec(&T::serve(&result).await)
-                    .map_err(|_| StatusCode::BAD_REQUEST)?;
-
-                Response::builder()
-                    .header(CONTENT_TYPE, "application/json")
-                    .body(boxed(Full::from(body)))
-                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
-            }
-        }
-    }
 }
 
 fn main() {
@@ -134,14 +101,18 @@ async fn client() {
 
 #[tokio::main]
 async fn server() {
-    let app = Router::new().route("/api/add", post(handler));
+    let app = Router::new().route("/api/add", rpc::<Add>());
     Server::bind(&"0.0.0.0:9090".parse().unwrap())
         .serve(app.into_make_service())
         .await
         .unwrap();
 }
 
-async fn handler(
+fn rpc<T: Rpc>() -> MethodRouter {
+    post(handler::<Add>)
+}
+
+async fn handler<T: Rpc>(
     headers: HeaderMap,
     request: Request<Body>,
 ) -> Result<impl IntoResponse, StatusCode> {
@@ -169,5 +140,32 @@ async fn handler(
         .await
         .map_err(|_| StatusCode::PARTIAL_CONTENT)?;
 
-    content_type.serve::<Add>(body.as_ref()).await
+    let data = body.as_ref();
+
+    match content_type {
+        MimeType::Cbor => {
+            let result = ciborium::de::from_reader(data).map_err(|_| StatusCode::BAD_REQUEST)?;
+
+            let mut body = Vec::new();
+
+            ciborium::ser::into_writer(&T::serve(&result).await, &mut body)
+                .map_err(|_| StatusCode::BAD_REQUEST)?;
+
+            Response::builder()
+                .header(CONTENT_TYPE, "application/cbor")
+                .body(boxed(Full::from(body)))
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+        }
+        MimeType::Json => {
+            let result = serde_json::from_slice(data).map_err(|_| StatusCode::BAD_REQUEST)?;
+
+            let body = serde_json::to_vec(&T::serve(&result).await)
+                .map_err(|_| StatusCode::BAD_REQUEST)?;
+
+            Response::builder()
+                .header(CONTENT_TYPE, "application/json")
+                .body(boxed(Full::from(body)))
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
 }
