@@ -1,0 +1,13 @@
+[package]
+name = "rpc-reqwasm"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rpc = { path = "../rpc" }
+async-trait = "0.1.63"
+ciborium = "0.2.0"
+reqwasm = "0.5.0"
+serde = { version = "1.0.152", features = ["derive"] }
+thiserror = "1.0.38"
+js-sys = "0.3.60"

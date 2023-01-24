@@ -19,14 +19,13 @@ pub enum ErrorFrom<C, S> {
     Server(S),
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 pub trait RpcClient {
     type Error;
 
     async fn call<'a, F>(self, function: &'a F) -> Result<F::ResultType, Self::Error>
     where
-        F: RemoteFn,
-        &'a F: Send;
+        F: RemoteFn;
 
     async fn try_call<F, Success, Error>(
         self,
@@ -35,9 +34,6 @@ pub trait RpcClient {
     where
         Self: Sized,
         F: RemoteFn<ResultType = Result<Success, Error>>,
-        for<'a> &'a F: Send,
-        Success: Send,
-        Error: Send,
     {
         match self.call(function).await {
             Ok(Ok(ok)) => Ok(ok),
