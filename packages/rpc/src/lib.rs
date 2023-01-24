@@ -3,13 +3,17 @@ use std::str::FromStr;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
-// TODO: `RemoteFallibleFn`,
+// TODO: Return error. Use an Ok and an Error associated type.
 #[async_trait]
 pub trait RemoteFn: Send + Serialize + for<'a> Deserialize<'a> {
     type ResultType: Serialize + for<'a> Deserialize<'a>;
 
     async fn run(&self) -> Self::ResultType;
 }
+
+// TODO: Message trait, with `send` on `RpcClient`.
+// TODO: Subscribe trait? Like call, but keeps receiving responses. Integration
+// with Streams?
 
 #[async_trait]
 pub trait RpcClient {
