@@ -21,18 +21,30 @@ impl RemoteFn for Add {
     }
 }
 
+#[derive(Serialize, Deserialize)]
+struct TryMultiply(i32, i32);
+
+#[async_trait]
+impl RemoteFn for TryMultiply {
+    type ResultType = i32;
+
+    async fn run(&self) -> Self::ResultType {
+        self.0 * self.1
+    }
+}
+
 #[tokio::main]
 async fn main() {
     let listener = Server::bind(&SocketAddr::from(([0, 0, 0, 0], 9090)));
 
-    let client = spawn(client());
+    let client = spawn(call_add());
     let server = spawn(server(listener));
 
     assert_eq!(3, client.await.unwrap().unwrap());
     server.abort();
 }
 
-async fn client() -> Result<i32, rpc_reqwest::Error> {
+async fn call_add() -> Result<i32, rpc_reqwest::Error> {
     let client = Connection::new(&reqwest::Client::new(), "http://127.0.0.1:9090/api/add");
     client.call(&Add(1, 2)).await
 }
