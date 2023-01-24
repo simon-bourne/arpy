@@ -23,12 +23,12 @@ pub enum ErrorFrom<C, S> {
 pub trait RpcClient {
     type Error;
 
-    async fn call<'a, F>(self, function: &'a F) -> Result<F::ResultType, Self::Error>
+    async fn call<F>(&mut self, function: &F) -> Result<F::ResultType, Self::Error>
     where
         F: RemoteFn;
 
     async fn try_call<F, Success, Error>(
-        self,
+        &mut self,
         function: &F,
     ) -> Result<Success, ErrorFrom<Self::Error, Error>>
     where

@@ -5,6 +5,7 @@ use std::{
 
 use async_trait::async_trait;
 use axum::{Router, Server};
+use reqwest::Client;
 use rpc::{RemoteFn, RpcClient};
 use rpc_axum::handle_rpc;
 use rpc_reqwest::Connection;
@@ -37,7 +38,11 @@ impl RemoteFn for TryMultiply {
 #[tokio::test]
 async fn fallible_call() {
     end_to_end_test(|port| async move {
-        let result = client(port, "add").call(&Add(2, 3)).await.unwrap();
+        let client = Client::new();
+        let result = connection(&client, port, "add")
+            .call(&Add(2, 3))
+            .await
+            .unwrap();
         assert_eq!(result, 5);
     })
     .await
@@ -46,7 +51,8 @@ async fn fallible_call() {
 #[tokio::test]
 async fn infallible_call() {
     end_to_end_test(|port| async move {
-        let result = client(port, "multiply")
+        let client = Client::new();
+        let result = connection(&client, port, "multiply")
             .try_call(&TryMultiply(2, 3))
             .await
             .unwrap();
@@ -55,11 +61,8 @@ async fn infallible_call() {
     .await
 }
 
-fn client(port: u16, function: &str) -> Connection {
-    Connection::new(
-        &reqwest::Client::new(),
-        format!("http://127.0.0.1:{port}/api/{function}"),
-    )
+fn connection<'a>(client: &'a Client, port: u16, function: &str) -> Connection<'a> {
+    Connection::new(client, format!("http://127.0.0.1:{port}/api/{function}"))
 }
 
 async fn end_to_end_test<Client, Block>(client: Client)

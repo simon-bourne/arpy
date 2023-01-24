@@ -1,16 +1,22 @@
 use async_trait::async_trait;
 use reqwest::{
     header::{HeaderValue, ACCEPT, CONTENT_TYPE},
-    Client, IntoUrl, RequestBuilder,
+    Client,
 };
 use rpc::{MimeType, RemoteFn, RpcClient};
 use thiserror::Error;
 
-pub struct Connection(RequestBuilder);
+pub struct Connection<'a> {
+    client: &'a Client,
+    url: String,
+}
 
-impl Connection {
-    pub fn new(client: &Client, url: impl IntoUrl) -> Self {
-        Self(client.post(url))
+impl<'a> Connection<'a> {
+    pub fn new(client: &'a Client, url: impl Into<String>) -> Self {
+        Self {
+            client,
+            url: url.into(),
+        }
     }
 }
 
@@ -27,10 +33,10 @@ pub enum Error {
 }
 
 #[async_trait(?Send)]
-impl RpcClient for Connection {
+impl<'a> RpcClient for Connection<'a> {
     type Error = Error;
 
-    async fn call<'a, F>(self, function: &'a F) -> Result<F::ResultType, Self::Error>
+    async fn call<F>(&mut self, function: &F) -> Result<F::ResultType, Self::Error>
     where
         F: RemoteFn,
     {
@@ -40,7 +46,8 @@ impl RpcClient for Connection {
         ciborium::ser::into_writer(&function, &mut body).unwrap();
 
         let result = self
-            .0
+            .client
+            .post(self.url.clone())
             .header(CONTENT_TYPE, content_type.as_str())
             .header(ACCEPT, content_type.as_str())
             .body(body)

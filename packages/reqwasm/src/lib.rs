@@ -4,6 +4,8 @@ use reqwasm::http;
 use rpc::{MimeType, RemoteFn, RpcClient};
 use thiserror::Error;
 
+pub mod websocket;
+
 pub struct HttpRequest(String);
 
 impl HttpRequest {
@@ -28,7 +30,7 @@ pub enum Error {
 impl RpcClient for HttpRequest {
     type Error = Error;
 
-    async fn call<'a, F>(self, function: &'a F) -> Result<F::ResultType, Self::Error>
+    async fn call<F>(&mut self, function: &F) -> Result<F::ResultType, Self::Error>
     where
         F: RemoteFn,
     {
