@@ -3,37 +3,12 @@ use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
 };
 
-use async_trait::async_trait;
 use axum::{Router, Server};
 use reqwest::Client;
-use rpc::{FnRemote, RpcClient};
+use rpc::RpcClient;
 use rpc_axum::handle_rpc;
 use rpc_reqwest::Connection;
-use serde::{Deserialize, Serialize};
-
-#[derive(Serialize, Deserialize, Debug)]
-struct Add(i32, i32);
-
-#[async_trait]
-impl FnRemote for Add {
-    type Output = i32;
-
-    async fn run(&self) -> Self::Output {
-        self.0 + self.1
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct TryMultiply(i32, i32);
-
-#[async_trait]
-impl FnRemote for TryMultiply {
-    type Output = Result<i32, ()>;
-
-    async fn run(&self) -> Self::Output {
-        Ok(self.0 * self.1)
-    }
-}
+use rpc_test_data::{Add, TryMultiply};
 
 #[tokio::test]
 async fn fallible_call() {
