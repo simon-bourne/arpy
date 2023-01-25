@@ -983,6 +983,7 @@ dependencies = [
  "rpc-axum",
  "rpc-reqwest",
  "rpc-test-data",
+ "rpc-test-server",
  "tokio",
 ]
 
@@ -1024,7 +1025,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "rpc-test-servers"
+name = "rpc-test-server"
 version = "0.1.0"
 dependencies = [
  "async-trait",

@@ -1,14 +1,10 @@
-use std::{
-    future::Future,
-    net::{IpAddr, Ipv4Addr, SocketAddr},
-};
+use std::{future::Future, net::SocketAddr};
 
-use axum::{Router, Server};
 use reqwest::Client;
 use rpc::RpcClient;
-use rpc_axum::http::handle_rpc;
 use rpc_reqwest::Connection;
 use rpc_test_data::{Add, TryMultiply};
+use rpc_test_server::dev_server;
 
 #[tokio::test]
 async fn fallible_http_call() {
@@ -37,7 +33,7 @@ async fn infallible_http_call() {
 }
 
 fn connection<'a>(client: &'a Client, port: u16, function: &str) -> Connection<'a> {
-    Connection::new(client, format!("http://127.0.0.1:{port}/api/{function}"))
+    Connection::new(client, format!("http://127.0.0.1:{port}/http/{function}"))
 }
 
 async fn end_to_end_test<Client, Block>(client: Client)
@@ -45,12 +41,7 @@ where
     Client: FnOnce(u16) -> Block,
     Block: Future<Output = ()>,
 {
-    let app = Router::new()
-        .route("/api/add", handle_rpc::<Add>())
-        .route("/api/multiply", handle_rpc::<TryMultiply>());
-
-    let server = Server::bind(&SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0))
-        .serve(app.into_make_service());
+    let server = dev_server(0);
     let port = match server.local_addr() {
         SocketAddr::V4(addr) => addr.port(),
         SocketAddr::V6(_) => panic!("IPv6 address"),

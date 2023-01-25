@@ -1,26 +1,14 @@
 use std::{
     env::{self, set_current_dir},
-    net::{IpAddr, Ipv4Addr, SocketAddr},
     path::Path,
 };
 
-use axum::{Router, Server};
-use rpc_axum::{http, websocket};
-use rpc_test_data::{Add, TryMultiply};
+use rpc_test_server::dev_server;
 use tokio::process::Command;
-use tower_http::cors::CorsLayer;
 
 #[tokio::test]
 async fn with_server() {
-    let app = Router::new()
-        .route("/http/add", http::handle_rpc::<Add>())
-        .route("/http/multiply", http::handle_rpc::<TryMultiply>())
-        .route("/ws/add", websocket::handle_rpc::<Add>())
-        .route("/ws/multiply", websocket::handle_rpc::<TryMultiply>())
-        .layer(CorsLayer::permissive());
-
-    let server = Server::bind(&SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0))
-        .serve(app.into_make_service());
+    let server = dev_server(0);
 
     let port = server.local_addr().port();
 

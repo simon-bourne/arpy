@@ -1,5 +1,5 @@
 [package]
-name = "rpc-test-servers"
+name = "rpc-test-server"
 version = "0.1.0"
 edition = "2021"
 publish = false
