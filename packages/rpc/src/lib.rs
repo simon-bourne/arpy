@@ -1,12 +1,12 @@
 use std::{fmt::Debug, str::FromStr};
 
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Serialize};
 use thiserror::Error;
 
 #[async_trait]
-pub trait RemoteFn: Debug + Send + Serialize + for<'a> Deserialize<'a> {
-    type ResultType: Serialize + for<'a> Deserialize<'a> + Debug;
+pub trait RemoteFn: Debug + Send + Serialize + DeserializeOwned {
+    type ResultType: Serialize + DeserializeOwned + Debug;
 
     async fn run(&self) -> Self::ResultType;
 }
