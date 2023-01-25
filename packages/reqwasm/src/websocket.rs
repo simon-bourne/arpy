@@ -24,7 +24,7 @@ impl Connection {
 impl RpcClient for Connection {
     type Error = Error;
 
-    async fn call<F>(&mut self, function: &F) -> Result<F::ResultType, Self::Error>
+    async fn call<F>(&mut self, function: &F) -> Result<F::Output, Self::Error>
     where
         F: RemoteFn,
     {
@@ -42,7 +42,7 @@ impl RpcClient for Connection {
             Err(Error::receive("End of stream"))?
         };
 
-        let result: F::ResultType = match result {
+        let result: F::Output = match result {
             Message::Text(_) => Err(Error::deserialize_result("Unexpected text result"))?,
             Message::Bytes(bytes) => {
                 ciborium::de::from_reader(bytes.as_slice()).map_err(Error::deserialize_result)?

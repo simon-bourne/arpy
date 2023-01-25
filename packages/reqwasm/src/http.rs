@@ -17,7 +17,7 @@ impl Connection {
 impl RpcClient for Connection {
     type Error = Error;
 
-    async fn call<F>(&mut self, function: &F) -> Result<F::ResultType, Self::Error>
+    async fn call<F>(&mut self, function: &F) -> Result<F::Output, Self::Error>
     where
         F: RemoteFn,
     {
@@ -44,7 +44,7 @@ impl RpcClient for Connection {
         }
 
         let result_bytes = result.binary().await.map_err(Error::receive)?;
-        let result: F::ResultType = ciborium::de::from_reader(result_bytes.as_slice())
+        let result: F::Output = ciborium::de::from_reader(result_bytes.as_slice())
             .map_err(Error::deserialize_result)?;
 
         Ok(result)

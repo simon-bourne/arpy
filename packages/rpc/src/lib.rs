@@ -6,9 +6,9 @@ use thiserror::Error;
 
 #[async_trait]
 pub trait RemoteFn: Debug + Send + Serialize + DeserializeOwned {
-    type ResultType: Serialize + DeserializeOwned + Debug;
+    type Output: Serialize + DeserializeOwned + Debug;
 
-    async fn run(&self) -> Self::ResultType;
+    async fn run(&self) -> Self::Output;
 }
 
 #[derive(Error, Debug)]
@@ -23,7 +23,7 @@ pub enum ErrorFrom<C, S> {
 pub trait RpcClient {
     type Error;
 
-    async fn call<F>(&mut self, function: &F) -> Result<F::ResultType, Self::Error>
+    async fn call<F>(&mut self, function: &F) -> Result<F::Output, Self::Error>
     where
         F: RemoteFn;
 
@@ -33,7 +33,7 @@ pub trait RpcClient {
     ) -> Result<Success, ErrorFrom<Self::Error, Error>>
     where
         Self: Sized,
-        F: RemoteFn<ResultType = Result<Success, Error>>,
+        F: RemoteFn<Output = Result<Success, Error>>,
     {
         match self.call(function).await {
             Ok(Ok(ok)) => Ok(ok),

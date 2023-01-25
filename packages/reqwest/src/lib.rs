@@ -36,7 +36,7 @@ pub enum Error {
 impl<'a> RpcClient for Connection<'a> {
     type Error = Error;
 
-    async fn call<F>(&mut self, function: &F) -> Result<F::ResultType, Self::Error>
+    async fn call<F>(&mut self, function: &F) -> Result<F::Output, Self::Error>
     where
         F: RemoteFn,
     {
@@ -62,7 +62,7 @@ impl<'a> RpcClient for Connection<'a> {
         }
 
         let result_bytes = result.bytes().await.map_err(Error::Receive)?;
-        let result: F::ResultType = ciborium::de::from_reader(result_bytes.as_ref())
+        let result: F::Output = ciborium::de::from_reader(result_bytes.as_ref())
             .map_err(|e| Error::DeserializeResult(e.to_string()))?;
 
         Ok(result)

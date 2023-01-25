@@ -16,9 +16,9 @@ struct Add(i32, i32);
 
 #[async_trait]
 impl RemoteFn for Add {
-    type ResultType = i32;
+    type Output = i32;
 
-    async fn run(&self) -> Self::ResultType {
+    async fn run(&self) -> Self::Output {
         self.0 + self.1
     }
 }
@@ -28,9 +28,9 @@ struct TryMultiply(i32, i32);
 
 #[async_trait]
 impl RemoteFn for TryMultiply {
-    type ResultType = Result<i32, ()>;
+    type Output = Result<i32, ()>;
 
-    async fn run(&self) -> Self::ResultType {
+    async fn run(&self) -> Self::Output {
         Ok(self.0 * self.1)
     }
 }
