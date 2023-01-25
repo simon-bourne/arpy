@@ -13,3 +13,4 @@ axum = { version = "0.6.3", features = ["ws", "headers"] }
 serde = { version = "1.0.152", features = ["derive"] }
 tokio = { version = "1.21.2", features = ["full"] }
 hyper = "0.14.23"
+tower-http = { version = "0.3.5", features = ["cors"] }
