@@ -4,10 +4,17 @@ use axum::{Router, Server};
 use rpc_axum::{http, websocket};
 use rpc_test_data::{Add, TryMultiply, PORT};
 use tower_http::cors::CorsLayer;
+use tracing::Level;
+use tracing_subscriber::FmtSubscriber;
 
-// TODO: HTTP and WebSocket servers
 #[tokio::main]
 async fn main() {
+    let subscriber = FmtSubscriber::builder()
+        .with_max_level(Level::TRACE)
+        .finish();
+
+    tracing::subscriber::set_global_default(subscriber).unwrap();
+
     let app = Router::new()
         .route("/http/add", http::handle_rpc::<Add>())
         .route("/http/multiply", http::handle_rpc::<TryMultiply>())

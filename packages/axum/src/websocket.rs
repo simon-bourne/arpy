@@ -27,8 +27,9 @@ async fn handle_socket<T: FnRemote>(socket: WebSocket)
 where
     for<'a> &'a T: Send,
 {
-    // TODO: Log errors
-    let _ = try_handle_socket::<T>(socket).await;
+    if let Err(e) = try_handle_socket::<T>(socket).await {
+        tracing::error!("Error on WebSocket: {e}");
+    }
 }
 
 async fn try_handle_socket<T: FnRemote>(mut socket: WebSocket) -> anyhow::Result<()>
