@@ -974,19 +974,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rpc-integration-tests"
-version = "0.1.0"
-dependencies = [
- "axum",
- "reqwest",
- "rpc",
- "rpc-axum",
- "rpc-reqwest",
- "rpc-test",
- "tokio",
-]
-
-[[package]]
 name = "rpc-reqwasm"
 version = "0.1.0"
 dependencies = [
@@ -1022,8 +1009,10 @@ dependencies = [
  "async-trait",
  "axum",
  "hyper",
+ "reqwest",
  "rpc",
  "rpc-axum",
+ "rpc-reqwest",
  "serde",
  "tokio",
  "tower-http",
