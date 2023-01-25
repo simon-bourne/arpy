@@ -33,11 +33,13 @@ async fn handler<T: RemoteFn>(
         MimeType::Json => serde_json::from_slice(body).map_err(|_| StatusCode::BAD_REQUEST)?,
     };
 
+    let response = T::run(&thunk).await;
+
     match response_type {
         MimeType::Cbor => {
             let mut body = Vec::new();
 
-            ciborium::ser::into_writer(&T::run(&thunk).await, &mut body)
+            ciborium::ser::into_writer(&response, &mut body)
                 .map_err(|_| StatusCode::BAD_REQUEST)?;
 
             Response::builder()
@@ -46,8 +48,7 @@ async fn handler<T: RemoteFn>(
                 .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
         }
         MimeType::Json => {
-            let body =
-                serde_json::to_vec(&T::run(&thunk).await).map_err(|_| StatusCode::BAD_REQUEST)?;
+            let body = serde_json::to_vec(&response).map_err(|_| StatusCode::BAD_REQUEST)?;
 
             Response::builder()
                 .header(CONTENT_TYPE, "application/json")
