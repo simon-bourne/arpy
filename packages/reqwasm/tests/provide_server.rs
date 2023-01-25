@@ -4,7 +4,7 @@ use std::{
     path::Path,
 };
 
-use rpc_test_data::server::dev_server;
+use rpc_test::server::dev_server;
 use tokio::process::Command;
 
 #[tokio::test]

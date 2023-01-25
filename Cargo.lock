@@ -982,7 +982,7 @@ dependencies = [
  "rpc",
  "rpc-axum",
  "rpc-reqwest",
- "rpc-test-data",
+ "rpc-test",
  "tokio",
 ]
 
@@ -996,7 +996,7 @@ dependencies = [
  "js-sys",
  "reqwasm",
  "rpc",
- "rpc-test-data",
+ "rpc-test",
  "serde",
  "thiserror",
  "tokio",
@@ -1016,7 +1016,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "rpc-test-data"
+name = "rpc-test"
 version = "0.1.0"
 dependencies = [
  "async-trait",

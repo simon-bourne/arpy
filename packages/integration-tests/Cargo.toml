@@ -5,7 +5,7 @@ edition = "2021"
 publish = false
 
 [dev-dependencies]
-rpc-test-data = { path = "../test-data" }
+rpc-test = { path = "../test" }
 rpc = { path = "../rpc" }
 rpc-axum = { path = "../axum" }
 rpc-reqwest = { path = "../reqwest" }

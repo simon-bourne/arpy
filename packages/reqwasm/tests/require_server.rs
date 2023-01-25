@@ -2,7 +2,7 @@
 use reqwasm::websocket::futures::WebSocket;
 use rpc::RpcClient;
 use rpc_reqwasm::{http, websocket};
-use rpc_test_data::Add;
+use rpc_test::Add;
 use wasm_bindgen_test::{wasm_bindgen_test, wasm_bindgen_test_configure};
 
 wasm_bindgen_test_configure!(run_in_browser);
