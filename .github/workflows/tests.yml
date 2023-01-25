@@ -15,8 +15,17 @@ jobs:
         toolchain: ${{ matrix.rust }}
         default: true
         components: clippy
+    - uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: ${{ matrix.rust }}
+        target: wasm32-unknown-unknown
     - uses: Swatinem/rust-cache@3bb3a9a087029c7bc392586cdc88cb6f66b9c6ef
       if: ${{ !env.ACT }}
+    - uses: actions-rs/install@v0.1
+      with:
+        crate: wasm-pack
+        version: 0.10.2
     - run: cargo clippy --all-targets -- -D warnings -D clippy::all
     - run: cargo doc
     - run: cargo test --all-targets
