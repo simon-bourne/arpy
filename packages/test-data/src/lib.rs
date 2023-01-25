@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use rpc::RemoteFn;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Add(pub i32, pub i32);
 
 #[async_trait]
@@ -14,7 +14,7 @@ impl RemoteFn for Add {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct TryMultiply(pub i32, pub i32);
 
 #[async_trait]

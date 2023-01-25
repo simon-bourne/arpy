@@ -11,7 +11,7 @@ use rpc_axum::handle_rpc;
 use rpc_reqwest::Connection;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 struct Add(i32, i32);
 
 #[async_trait]
@@ -23,7 +23,7 @@ impl RemoteFn for Add {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 struct TryMultiply(i32, i32);
 
 #[async_trait]
