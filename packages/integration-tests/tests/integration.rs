@@ -3,8 +3,7 @@ use std::{future::Future, net::SocketAddr};
 use reqwest::Client;
 use rpc::RpcClient;
 use rpc_reqwest::Connection;
-use rpc_test_data::{Add, TryMultiply};
-use rpc_test_server::dev_server;
+use rpc_test_data::{server::dev_server, Add, TryMultiply};
 
 #[tokio::test]
 async fn fallible_http_call() {

@@ -1,5 +1,4 @@
-use rpc_test_data::PORT;
-use rpc_test_server::dev_server;
+use rpc_test_data::{server::dev_server, PORT};
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
 

@@ -2,6 +2,9 @@ use async_trait::async_trait;
 use rpc::FnRemote;
 use serde::{Deserialize, Serialize};
 
+#[cfg(not(target_arch = "wasm32"))]
+pub mod server;
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Add(pub i32, pub i32);
 
