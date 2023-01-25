@@ -7,16 +7,16 @@ use axum::{
     routing::{post, MethodRouter},
 };
 use hyper::{body, header::CONTENT_TYPE};
-use rpc::{MimeType, RemoteFn};
+use rpc::{MimeType, FnRemote};
 
-pub fn handle_rpc<T: RemoteFn + 'static>() -> MethodRouter
+pub fn handle_rpc<T: FnRemote + 'static>() -> MethodRouter
 where
     for<'a> &'a T: Send,
 {
     post(handler::<T>)
 }
 
-async fn handler<T: RemoteFn>(
+async fn handler<T: FnRemote>(
     headers: HeaderMap,
     request: Request<Body>,
 ) -> Result<impl IntoResponse, StatusCode> {

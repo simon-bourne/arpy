@@ -4,7 +4,7 @@ use futures::{
     SinkExt, StreamExt,
 };
 use reqwasm::websocket::{futures::WebSocket, Message};
-use rpc::{RemoteFn, RpcClient};
+use rpc::{FnRemote, RpcClient};
 
 use crate::Error;
 
@@ -26,7 +26,7 @@ impl RpcClient for Connection {
 
     async fn call<F>(&mut self, function: &F) -> Result<F::Output, Self::Error>
     where
-        F: RemoteFn,
+        F: FnRemote,
     {
         let mut body = Vec::new();
         ciborium::ser::into_writer(&function, &mut body).unwrap();

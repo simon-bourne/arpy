@@ -6,7 +6,7 @@ use std::{
 use async_trait::async_trait;
 use axum::{Router, Server};
 use reqwest::Client;
-use rpc::{RemoteFn, RpcClient};
+use rpc::{FnRemote, RpcClient};
 use rpc_axum::handle_rpc;
 use rpc_reqwest::Connection;
 use serde::{Deserialize, Serialize};
@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 struct Add(i32, i32);
 
 #[async_trait]
-impl RemoteFn for Add {
+impl FnRemote for Add {
     type Output = i32;
 
     async fn run(&self) -> Self::Output {
@@ -27,7 +27,7 @@ impl RemoteFn for Add {
 struct TryMultiply(i32, i32);
 
 #[async_trait]
-impl RemoteFn for TryMultiply {
+impl FnRemote for TryMultiply {
     type Output = Result<i32, ()>;
 
     async fn run(&self) -> Self::Output {

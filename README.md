@@ -7,7 +7,7 @@ This is very much a work in progress, but the general idea is that you could def
 pub struct Add(pub i32, pub i32);
 
 #[async_trait]
-impl RemoteFn for Add {
+impl FnRemote for Add {
     type Output = i32;
 
     async fn run(&self) -> Self::Output {
@@ -19,7 +19,7 @@ impl RemoteFn for Add {
 pub struct TryMultiply(pub i32, pub i32);
 
 #[async_trait]
-impl RemoteFn for TryMultiply {
+impl FnRemote for TryMultiply {
     type Output = Result<i32, ()>;
 
     async fn run(&self) -> Self::Output {

@@ -1,12 +1,12 @@
 use async_trait::async_trait;
-use rpc::RemoteFn;
+use rpc::FnRemote;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Add(pub i32, pub i32);
 
 #[async_trait]
-impl RemoteFn for Add {
+impl FnRemote for Add {
     type Output = i32;
 
     async fn run(&self) -> Self::Output {
@@ -18,7 +18,7 @@ impl RemoteFn for Add {
 pub struct TryMultiply(pub i32, pub i32);
 
 #[async_trait]
-impl RemoteFn for TryMultiply {
+impl FnRemote for TryMultiply {
     type Output = Result<i32, ()>;
 
     async fn run(&self) -> Self::Output {
