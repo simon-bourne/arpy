@@ -1,7 +1,4 @@
-//! These tests are run from a native test in `test-server`.
-//!
-//! They need a dev server running, and that requires various non-wasm crates,
-//! so we can't build that test in this crate.
+//! These tests are run from `provide_server`
 use reqwasm::websocket::futures::WebSocket;
 use rpc::RpcClient;
 use rpc_reqwasm::{http, websocket};

@@ -1,3 +1,4 @@
+#![cfg(not(target_arch = "wasm32"))]
 use std::{
     env::{self, set_current_dir},
     path::Path,

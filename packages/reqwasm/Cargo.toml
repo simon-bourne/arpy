@@ -16,3 +16,7 @@ futures = "0.3.25"
 [dev-dependencies]
 wasm-bindgen-test = "0.3.33"
 rpc-test-data = { path = "../test-data" }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+tokio = { version = "1.24.2", features = ["macros", "process"] }
+rpc-test-server = { path = "../test-server" }
