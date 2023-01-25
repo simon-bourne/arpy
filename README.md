@@ -28,7 +28,7 @@ impl RemoteFn for TryMultiply {
 }
 ```
 
-Then set up a server, using one of various implementations. For exampe, using `axum`:
+Then set up a server, using one of various implementations. For example, using the `axum` server:
 
 ```rust
 let app = Router::new()
@@ -42,7 +42,7 @@ Server::bind(&SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), PORT))
     .unwrap();
 ```
 
-And then call them with various client implementations, for example, using `reqwasm`:
+And then call them with various client implementations, for example, using the `reqwasm` client:
 
 ```rust
 let mut connection = http::Connection::new(&format!("http://127.0.0.1:9090/api/add"));
