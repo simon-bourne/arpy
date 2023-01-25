@@ -5,16 +5,16 @@ use rpc::{MimeType, RemoteFn, RpcClient};
 
 use crate::Error;
 
-pub struct Request(String);
+pub struct Connection(String);
 
-impl Request {
+impl Connection {
     pub fn new(url: &str) -> Self {
         Self(url.to_string())
     }
 }
 
 #[async_trait(?Send)]
-impl RpcClient for Request {
+impl RpcClient for Connection {
     type Error = Error;
 
     async fn call<F>(&mut self, function: &F) -> Result<F::ResultType, Self::Error>

@@ -8,7 +8,7 @@ wasm_bindgen_test_configure!(run_in_browser);
 
 #[wasm_bindgen_test]
 async fn http_client() {
-    let mut request = http::Request::new(&format!("http://127.0.0.1:{PORT}/api/add"));
+    let mut request = http::Connection::new(&format!("http://127.0.0.1:{PORT}/api/add"));
 
     assert_eq!(3, request.call(&Add(1, 2)).await.unwrap());
 }
