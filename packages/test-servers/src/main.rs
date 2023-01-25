@@ -1,7 +1,7 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use axum::{Router, Server};
-use rpc_axum::handle_rpc;
+use rpc_axum::http::handle_rpc;
 use rpc_test_data::{Add, TryMultiply, PORT};
 use tower_http::cors::CorsLayer;
 

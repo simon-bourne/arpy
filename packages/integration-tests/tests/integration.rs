@@ -6,12 +6,12 @@ use std::{
 use axum::{Router, Server};
 use reqwest::Client;
 use rpc::RpcClient;
-use rpc_axum::handle_rpc;
+use rpc_axum::http::handle_rpc;
 use rpc_reqwest::Connection;
 use rpc_test_data::{Add, TryMultiply};
 
 #[tokio::test]
-async fn fallible_call() {
+async fn fallible_http_call() {
     end_to_end_test(|port| async move {
         let client = Client::new();
         let result = connection(&client, port, "add")
@@ -24,7 +24,7 @@ async fn fallible_call() {
 }
 
 #[tokio::test]
-async fn infallible_call() {
+async fn infallible_http_call() {
     end_to_end_test(|port| async move {
         let client = Client::new();
         let result = connection(&client, port, "multiply")
