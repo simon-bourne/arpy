@@ -1,5 +1,9 @@
+use anyhow::bail;
 use axum::{
-    extract::{ws::WebSocket, WebSocketUpgrade},
+    extract::{
+        ws::{Message, WebSocket},
+        WebSocketUpgrade,
+    },
     response::Response,
     routing::{get, MethodRouter},
 };
@@ -12,23 +16,41 @@ where
     get(handler::<T>)
 }
 
-async fn handler<T: FnRemote + 'static>(ws: WebSocketUpgrade) -> Response {
+async fn handler<T: FnRemote + 'static>(ws: WebSocketUpgrade) -> Response
+where
+    for<'a> &'a T: Send,
+{
     ws.on_upgrade(handle_socket::<T>)
 }
 
-async fn handle_socket<T: FnRemote>(mut socket: WebSocket) {
-    while let Some(msg) = socket.recv().await {
-        // TODO: Implement RPC
-        let msg = if let Ok(msg) = msg {
-            msg
-        } else {
-            // client disconnected
-            return;
-        };
+async fn handle_socket<T: FnRemote>(socket: WebSocket)
+where
+    for<'a> &'a T: Send,
+{
+    // TODO: Log errors
+    let _ = try_handle_socket::<T>(socket).await;
+}
 
-        if socket.send(msg).await.is_err() {
-            // client disconnected
-            return;
+async fn try_handle_socket<T: FnRemote>(mut socket: WebSocket) -> anyhow::Result<()>
+where
+    T: Send,
+    for<'a> &'a T: Send,
+{
+    while let Some(msg) = socket.recv().await {
+        match msg? {
+            Message::Text(_) => bail!("Text message type is unsupported"),
+            Message::Binary(bytes) => {
+                let function: T = ciborium::de::from_reader(bytes.as_slice())?;
+                let result = function.run().await;
+                let mut body = Vec::new();
+                ciborium::ser::into_writer(&result, &mut body).unwrap();
+                socket.send(Message::Binary(body)).await?;
+            }
+            Message::Ping(_) => (),
+            Message::Pong(_) => (),
+            Message::Close(_) => return Ok(()),
         }
     }
+
+    Ok(())
 }

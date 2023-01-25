@@ -5,8 +5,8 @@ use serde::{de::DeserializeOwned, Serialize};
 use thiserror::Error;
 
 #[async_trait]
-pub trait FnRemote: Debug + Send + Serialize + DeserializeOwned {
-    type Output: Serialize + DeserializeOwned + Debug;
+pub trait FnRemote: Serialize + DeserializeOwned + Debug + Send {
+    type Output: Serialize + DeserializeOwned + Debug + Send;
 
     async fn run(&self) -> Self::Output;
 }
