@@ -1,5 +1,6 @@
-use axum::{routing::MethodRouter, Router};
+use axum::Router;
 use rpc::{FnRemote, RpcId};
+use websocket::WebSocketRouter;
 
 pub mod http;
 pub mod websocket;
@@ -12,9 +13,7 @@ pub trait RpcRoute {
     where
         for<'a> &'a T: Send;
 
-    fn ws_rpc_route<T: FnRemote + RpcId + 'static>(self, prefix: &str) -> Self
-    where
-        for<'a> &'a T: Send;
+    fn ws_rpc_route(self, route: &str, router: WebSocketRouter) -> Self;
 }
 
 impl RpcRoute for Router {
@@ -22,17 +21,11 @@ impl RpcRoute for Router {
     where
         for<'a> &'a T: Send,
     {
-        route(self, T::ID, prefix, http::handle_rpc::<T>())
+        let id = T::ID;
+        self.route(&format!("{prefix}/{id}",), http::handle_rpc::<T>())
     }
 
-    fn ws_rpc_route<T: FnRemote + RpcId + Send + 'static>(self, prefix: &str) -> Self
-    where
-        for<'a> &'a T: Send,
-    {
-        route(self, T::ID, prefix, websocket::handle_rpc::<T>())
+    fn ws_rpc_route(self, route: &str, router: WebSocketRouter) -> Self {
+        self.route(route, router.into())
     }
-}
-
-fn route(router: Router, id: &str, prefix: &str, method_router: MethodRouter) -> Router {
-    router.route(&format!("{prefix}/{}", id), method_router)
 }

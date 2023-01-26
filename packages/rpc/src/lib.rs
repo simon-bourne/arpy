@@ -25,7 +25,7 @@ pub trait RpcClient {
 
     async fn call<F>(&mut self, function: &F) -> Result<F::Output, Self::Error>
     where
-        F: FnRemote;
+        F: FnRemote + RpcId;
 
     async fn try_call<F, Success, Error>(
         &mut self,
@@ -33,7 +33,7 @@ pub trait RpcClient {
     ) -> Result<Success, ErrorFrom<Self::Error, Error>>
     where
         Self: Sized,
-        F: FnRemote<Output = Result<Success, Error>>,
+        F: FnRemote<Output = Result<Success, Error>> + RpcId,
     {
         match self.call(function).await {
             Ok(Ok(ok)) => Ok(ok),

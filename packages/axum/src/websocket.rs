@@ -1,57 +1,98 @@
+use std::{collections::HashMap, sync::Arc};
+
 use anyhow::bail;
 use axum::{
     extract::{
         ws::{Message, WebSocket},
         WebSocketUpgrade,
     },
-    response::Response,
     routing::{get, MethodRouter},
 };
-use rpc::FnRemote;
+use futures::future::BoxFuture;
+use rpc::{FnRemote, RpcId};
 
-pub fn handle_rpc<T: FnRemote + 'static>() -> MethodRouter
-where
-    for<'a> &'a T: Send,
-{
-    get(handler::<T>)
-}
+#[derive(Default)]
+pub struct WebSocketRouter(HashMap<Id, RpcHandler>);
 
-async fn handler<T: FnRemote + 'static>(ws: WebSocketUpgrade) -> Response
-where
-    for<'a> &'a T: Send,
-{
-    ws.on_upgrade(handle_socket::<T>)
-}
+impl WebSocketRouter {
+    pub fn new() -> Self {
+        Self::default()
+    }
 
-async fn handle_socket<T: FnRemote>(socket: WebSocket)
-where
-    for<'a> &'a T: Send,
-{
-    if let Err(e) = try_handle_socket::<T>(socket).await {
-        tracing::error!("Error on WebSocket: {e}");
+    pub fn handle<T>(mut self) -> Self
+    where
+        for<'a> &'a T: Send,
+        T: FnRemote + RpcId + 'static,
+    {
+        let id = T::ID.as_bytes().to_vec();
+        self.0
+            .insert(id, Box::new(|body| Box::pin(Self::run::<T>(body))));
+
+        self
+    }
+
+    async fn run<T>(input: Vec<u8>) -> anyhow::Result<Vec<u8>>
+    where
+        for<'a> &'a T: Send,
+        T: FnRemote + RpcId + 'static,
+    {
+        let function: T = ciborium::de::from_reader(input.as_slice())?;
+        let result = function.run().await;
+        let mut body = Vec::new();
+        ciborium::ser::into_writer(&result, &mut body).unwrap();
+        Ok(body)
     }
 }
 
-async fn try_handle_socket<T: FnRemote>(mut socket: WebSocket) -> anyhow::Result<()>
-where
-    T: Send,
-    for<'a> &'a T: Send,
-{
-    while let Some(msg) = socket.recv().await {
-        match msg? {
-            Message::Text(_) => bail!("Text message type is unsupported"),
-            Message::Binary(bytes) => {
-                let function: T = ciborium::de::from_reader(bytes.as_slice())?;
-                let result = function.run().await;
-                let mut body = Vec::new();
-                ciborium::ser::into_writer(&result, &mut body).unwrap();
-                socket.send(Message::Binary(body)).await?;
-            }
-            Message::Ping(_) => (),
-            Message::Pong(_) => (),
-            Message::Close(_) => return Ok(()),
+#[derive(Clone)]
+struct WebSocketHandler(Arc<HashMap<Id, RpcHandler>>);
+
+impl WebSocketHandler {
+    async fn handle_socket(&self, socket: WebSocket) {
+        if let Err(e) = self.try_handle_socket(socket).await {
+            tracing::error!("Error on WebSocket: {e}");
         }
     }
 
-    Ok(())
+    async fn try_handle_socket(&self, mut socket: WebSocket) -> anyhow::Result<()> {
+        while let Some(id) = Self::next_msg(&mut socket).await? {
+            let Some(function) = self.0.get(&id)
+            else { bail!("Function not found") };
+
+            let Some(params) = Self::next_msg(&mut socket).await?
+            else { bail!("Expected params message")};
+
+            let output = function(params).await?;
+            socket.send(Message::Binary(output)).await?;
+        }
+
+        Ok(())
+    }
+
+    async fn next_msg(socket: &mut WebSocket) -> anyhow::Result<Option<Vec<u8>>> {
+        while let Some(msg) = socket.recv().await {
+            match msg? {
+                Message::Text(_) => bail!("Text message type is unsupported"),
+                Message::Binary(bytes) => return Ok(Some(bytes)),
+                Message::Ping(_) => (),
+                Message::Pong(_) => (),
+                Message::Close(_) => return Ok(None),
+            }
+        }
+
+        Ok(None)
+    }
 }
+
+impl From<WebSocketRouter> for MethodRouter {
+    fn from(value: WebSocketRouter) -> Self {
+        let value = WebSocketHandler(Arc::new(value.0));
+
+        get(|ws: WebSocketUpgrade| async {
+            ws.on_upgrade(|socket: WebSocket| async move { value.handle_socket(socket).await })
+        })
+    }
+}
+
+type Id = Vec<u8>;
+type RpcHandler = Box<dyn Fn(Vec<u8>) -> BoxFuture<'static, anyhow::Result<Vec<u8>>> + Send + Sync>;
