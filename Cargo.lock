@@ -12,6 +12,7 @@ checksum = "2cb2f989d18dd141ab8ae82f64d1a8cdd37e0840f73a406896cf5e99502fab61"
 name = "arpy"
 version = "0.1.0"
 dependencies = [
+ "arpy-macros",
  "async-trait",
  "serde",
  "thiserror",
@@ -65,6 +66,15 @@ dependencies = [
  "arpy-reqwest",
  "reqwest",
  "tokio",
+]
+
+[[package]]
+name = "arpy-macros"
+version = "0.1.0"
+dependencies = [
+ "heck",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -576,6 +586,12 @@ checksum = "e7f66481bfee273957b1f20485a4ff3362987f85b2c236580d81b4eb7a326429"
 dependencies = [
  "http",
 ]
+
+[[package]]
+name = "heck"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2540771e65fc8cb83cd6e8a237f70c319bd5c29f78ed1084ba5d50eeac86f7f9"
 
 [[package]]
 name = "hermit-abi"

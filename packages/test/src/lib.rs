@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(not(target_arch = "wasm32"))]
 pub mod server;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(RpcId, Serialize, Deserialize, Debug)]
 pub struct Add(pub i32, pub i32);
 
 #[async_trait]
@@ -17,11 +17,7 @@ impl FnRemote for Add {
     }
 }
 
-impl RpcId for Add {
-    const ID: &'static str = "add";
-}
-
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(RpcId, Serialize, Deserialize, Debug)]
 pub struct TryMultiply(pub i32, pub i32);
 
 #[async_trait]
@@ -31,10 +27,6 @@ impl FnRemote for TryMultiply {
     async fn run(&self) -> Self::Output {
         Ok(self.0 * self.1)
     }
-}
-
-impl RpcId for TryMultiply {
-    const ID: &'static str = "multiply";
 }
 
 pub const PORT: u16 = 9090;

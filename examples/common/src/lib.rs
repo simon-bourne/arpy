@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 pub const PORT: u16 = 9090;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(RpcId, Serialize, Deserialize, Debug)]
 pub struct MyFunction(pub String);
 
 #[async_trait]
@@ -16,11 +16,7 @@ impl FnRemote for MyFunction {
     }
 }
 
-impl RpcId for MyFunction {
-    const ID: &'static str = "my-function";
-}
-
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(RpcId, Serialize, Deserialize, Debug)]
 pub struct MyFallibleFunction(pub String);
 
 #[async_trait]
@@ -34,8 +30,4 @@ impl FnRemote for MyFallibleFunction {
             Ok(format!("Hello, {}", self.0))
         }
     }
-}
-
-impl RpcId for MyFallibleFunction {
-    const ID: &'static str = "my-fallible-function";
 }

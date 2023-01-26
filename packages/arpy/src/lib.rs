@@ -1,11 +1,12 @@
 use std::{error::Error, fmt::Debug, str::FromStr};
 
+pub use arpy_macros::RpcId;
 use async_trait::async_trait;
 use serde::{de::DeserializeOwned, Serialize};
 use thiserror::Error;
 
 #[async_trait]
-pub trait FnRemote: RpcId + Serialize + DeserializeOwned + Debug {
+pub trait FnRemote: id::RpcId + Serialize + DeserializeOwned + Debug {
     type Output: Serialize + DeserializeOwned + Debug;
 
     async fn run(&self) -> Self::Output;
@@ -43,9 +44,10 @@ pub trait RpcClient {
     }
 }
 
-// TODO: Add a derive macro for this
-pub trait RpcId {
-    const ID: &'static str;
+pub mod id {
+    pub trait RpcId {
+        const ID: &'static str;
+    }
 }
 
 #[derive(Copy, Clone)]
