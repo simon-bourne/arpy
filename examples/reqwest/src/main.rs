@@ -1,6 +1,6 @@
 use reqwest::Client;
 use rpc::RpcClient;
-use rpc_example_rpc::{MyFunction, MY_FUNCTION, PORT};
+use rpc_example_rpc::{MyFunction, PORT};
 use rpc_reqwest::Connection;
 
 #[tokio::main]
@@ -9,7 +9,7 @@ async fn main() -> Result<(), rpc_reqwest::Error> {
     // connection.
     app(Connection::new(
         &Client::new(),
-        format!("http://127.0.0.1:{PORT}/http/{MY_FUNCTION}"),
+        format!("http://127.0.0.1:{PORT}/http"),
     ))
     .await
 }

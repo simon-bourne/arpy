@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use js_sys::Uint8Array;
 use reqwasm::http;
-use rpc::{FnRemote, MimeType, RpcClient};
+use rpc::{FnRemote, MimeType, RpcClient, RpcId};
 
 use crate::Error;
 
@@ -19,7 +19,7 @@ impl RpcClient for Connection {
 
     async fn call<F>(&mut self, function: &F) -> Result<F::Output, Self::Error>
     where
-        F: FnRemote,
+        F: FnRemote + RpcId,
     {
         let content_type = MimeType::Cbor;
         let mut body = Vec::new();
@@ -29,7 +29,7 @@ impl RpcClient for Connection {
         let js_body = Uint8Array::new_with_length(body.len() as u32);
         js_body.copy_from(&body);
 
-        let result = http::Request::post(&self.0)
+        let result = http::Request::post(&format!("{}/{}", self.0, F::ID))
             .header(CONTENT_TYPE, content_type.as_str())
             .header(ACCEPT, content_type.as_str())
             .body(js_body)

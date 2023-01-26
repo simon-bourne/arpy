@@ -3,7 +3,7 @@ use reqwest::{
     header::{HeaderValue, ACCEPT, CONTENT_TYPE},
     Client,
 };
-use rpc::{FnRemote, MimeType, RpcClient};
+use rpc::{FnRemote, MimeType, RpcClient, RpcId};
 use thiserror::Error;
 
 pub struct Connection<'a> {
@@ -38,7 +38,7 @@ impl<'a> RpcClient for Connection<'a> {
 
     async fn call<F>(&mut self, function: &F) -> Result<F::Output, Self::Error>
     where
-        F: FnRemote,
+        F: FnRemote + RpcId,
     {
         let content_type = MimeType::Cbor;
         let mut body = Vec::new();
@@ -47,7 +47,7 @@ impl<'a> RpcClient for Connection<'a> {
 
         let result = self
             .client
-            .post(self.url.clone())
+            .post(format!("{}/{}", self.url, F::ID))
             .header(CONTENT_TYPE, content_type.as_str())
             .header(ACCEPT, content_type.as_str())
             .body(body)

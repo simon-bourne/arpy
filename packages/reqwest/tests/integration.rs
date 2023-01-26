@@ -9,10 +9,7 @@ use rpc_test::{server::dev_server, Add, TryMultiply};
 async fn fallible_http_call() {
     end_to_end_test(|port| async move {
         let client = Client::new();
-        let result = connection(&client, port, "add")
-            .call(&Add(2, 3))
-            .await
-            .unwrap();
+        let result = connection(&client, port).call(&Add(2, 3)).await.unwrap();
         assert_eq!(result, 5);
     })
     .await
@@ -22,7 +19,7 @@ async fn fallible_http_call() {
 async fn infallible_http_call() {
     end_to_end_test(|port| async move {
         let client = Client::new();
-        let result = connection(&client, port, "multiply")
+        let result = connection(&client, port)
             .try_call(&TryMultiply(2, 3))
             .await
             .unwrap();
@@ -31,8 +28,8 @@ async fn infallible_http_call() {
     .await
 }
 
-fn connection<'a>(client: &'a Client, port: u16, function: &str) -> Connection<'a> {
-    Connection::new(client, format!("http://127.0.0.1:{port}/http/{function}"))
+fn connection(client: &'_ Client, port: u16) -> Connection<'_> {
+    Connection::new(client, format!("http://127.0.0.1:{port}/http"))
 }
 
 async fn end_to_end_test<Client, Block>(client: Client)

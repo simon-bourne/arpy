@@ -3,7 +3,6 @@ use rpc::{FnRemote, RpcId};
 use serde::{Deserialize, Serialize};
 
 pub const PORT: u16 = 9090;
-pub const MY_FUNCTION: &str = "my-function";
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct MyFunction(pub String);
