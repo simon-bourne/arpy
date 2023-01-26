@@ -43,6 +43,11 @@ pub trait RpcClient {
     }
 }
 
+// TODO: Add a derive macro for this
+pub trait RpcId {
+    const ID: &'static str;
+}
+
 #[derive(Copy, Clone)]
 pub enum MimeType {
     Cbor,

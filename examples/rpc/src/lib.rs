@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use rpc::FnRemote;
+use rpc::{FnRemote, RpcId};
 use serde::{Deserialize, Serialize};
 
 pub const PORT: u16 = 9090;
@@ -15,4 +15,8 @@ impl FnRemote for MyFunction {
     async fn run(&self) -> Self::Output {
         format!("Hello, {}", self.0)
     }
+}
+
+impl RpcId for MyFunction {
+    const ID: &'static str = "my-function";
 }

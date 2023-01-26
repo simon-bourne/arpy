@@ -978,6 +978,7 @@ name = "rpc-example-axum"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "rpc",
  "rpc-axum",
  "rpc-example-rpc",
  "tokio",

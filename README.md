@@ -32,11 +32,10 @@ Then set up a server, using one of various implementations. For example, using t
 
 ```rust
 let app = Router::new()
-    .route("/api/add", handle_rpc::<Add>())
-    .route("/api/multiply", handle_rpc::<TryMultiply>())
-    .layer(CorsLayer::permissive());
+    .http_rpc_route::<Add>("/http")
+    .http_rpc_route::<TryMultiply>("/http");
 
-Server::bind(&SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), PORT))
+Server::bind(&SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), port))
     .serve(app.into_make_service())
     .await
     .unwrap();

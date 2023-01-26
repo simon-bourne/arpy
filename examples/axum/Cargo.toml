@@ -5,6 +5,7 @@ edition = "2021"
 publish = false
 
 [dependencies]
+rpc = { path = "../../packages/rpc" }
 rpc-axum = { path = "../../packages/axum" }
 rpc-example-rpc = { path = "../rpc" }
 axum = { version = "0.6.3", features = ["ws", "headers"] }
