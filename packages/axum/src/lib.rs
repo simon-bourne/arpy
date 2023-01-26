@@ -1,5 +1,5 @@
-use axum::Router;
 use arpy::{FnRemote, RpcId};
+use axum::Router;
 
 mod http;
 mod websocket;

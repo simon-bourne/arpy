@@ -1,10 +1,10 @@
+use arpy::{FnRemote, RpcClient, RpcId};
 use async_trait::async_trait;
 use futures::{
     stream::{SplitSink, SplitStream},
     SinkExt, StreamExt,
 };
 use reqwasm::websocket::{futures::WebSocket, Message};
-use arpy::{FnRemote, RpcClient, RpcId};
 
 use crate::Error;
 

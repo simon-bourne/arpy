@@ -1,7 +1,7 @@
-use reqwest::Client;
 use arpy::RpcClient;
 use arpy_example_common::{MyFunction, PORT};
 use arpy_reqwest::Connection;
+use reqwest::Client;
 
 #[tokio::main]
 async fn main() -> Result<(), arpy_reqwest::Error> {

@@ -1,5 +1,5 @@
-use async_trait::async_trait;
 use arpy::{FnRemote, RpcId};
+use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
 pub const PORT: u16 = 9090;

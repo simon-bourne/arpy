@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use arpy::{FnRemote, MimeType};
 use axum::{
     body::{boxed, Body, Full},
     http::{header::ACCEPT, HeaderMap, HeaderValue, Request, StatusCode},
@@ -7,7 +8,6 @@ use axum::{
     routing::{post, MethodRouter},
 };
 use hyper::{body, header::CONTENT_TYPE};
-use arpy::{FnRemote, MimeType};
 
 pub fn handle_rpc<T: FnRemote + 'static>() -> MethodRouter
 where

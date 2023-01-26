@@ -1,6 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use anyhow::bail;
+use arpy::{FnRemote, RpcId};
 use axum::{
     extract::{
         ws::{Message, WebSocket},
@@ -9,7 +10,6 @@ use axum::{
     routing::{get, MethodRouter},
 };
 use futures::future::BoxFuture;
-use arpy::{FnRemote, RpcId};
 
 #[derive(Default)]
 pub struct WebSocketRouter(HashMap<Id, RpcHandler>);
