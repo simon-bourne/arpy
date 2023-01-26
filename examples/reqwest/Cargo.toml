@@ -10,3 +10,4 @@ arpy-reqwest = { path = "../../packages/reqwest" }
 arpy-example-common = { path = "../common" }
 reqwest = "0.11.14"
 tokio = { version = "1.21.2", features = ["full"] }
+anyhow = "1.0.68"

@@ -5,8 +5,8 @@ use serde::{de::DeserializeOwned, Serialize};
 use thiserror::Error;
 
 #[async_trait]
-pub trait FnRemote: Serialize + DeserializeOwned + Debug + Send {
-    type Output: Serialize + DeserializeOwned + Debug + Send;
+pub trait FnRemote: RpcId + Serialize + DeserializeOwned + Debug {
+    type Output: Serialize + DeserializeOwned + Debug;
 
     async fn run(&self) -> Self::Output;
 }
@@ -21,11 +21,11 @@ pub enum ErrorFrom<C, S> {
 
 #[async_trait(?Send)]
 pub trait RpcClient {
-    type Error: Error + Debug;
+    type Error: Error + Debug + Send + Sync + 'static;
 
     async fn call<F>(&mut self, function: &F) -> Result<F::Output, Self::Error>
     where
-        F: FnRemote + RpcId;
+        F: FnRemote;
 
     async fn try_call<F, Success, Error>(
         &mut self,
@@ -33,7 +33,7 @@ pub trait RpcClient {
     ) -> Result<Success, ErrorFrom<Self::Error, Error>>
     where
         Self: Sized,
-        F: FnRemote<Output = Result<Success, Error>> + RpcId,
+        F: FnRemote<Output = Result<Success, Error>>,
     {
         match self.call(function).await {
             Ok(Ok(ok)) => Ok(ok),

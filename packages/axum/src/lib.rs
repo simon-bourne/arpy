@@ -1,4 +1,4 @@
-use arpy::{FnRemote, RpcId};
+use arpy::FnRemote;
 use axum::Router;
 
 mod http;
@@ -7,17 +7,17 @@ mod websocket;
 pub use websocket::WebSocketRouter;
 
 pub trait RpcRoute {
-    fn http_rpc_route<T: FnRemote + RpcId + 'static>(self, prefix: &str) -> Self
+    fn http_rpc_route<T>(self, prefix: &str) -> Self
     where
-        for<'a> &'a T: Send;
+        T: FnRemote + Send + Sync + 'static;
 
     fn ws_rpc_route(self, route: &str, router: WebSocketRouter) -> Self;
 }
 
 impl RpcRoute for Router {
-    fn http_rpc_route<T: FnRemote + RpcId + Send + 'static>(self, prefix: &str) -> Self
+    fn http_rpc_route<T>(self, prefix: &str) -> Self
     where
-        for<'a> &'a T: Send,
+        T: FnRemote + Send + Sync + 'static,
     {
         let id = T::ID;
         self.route(&format!("{prefix}/{id}",), http::handle_rpc::<T>())

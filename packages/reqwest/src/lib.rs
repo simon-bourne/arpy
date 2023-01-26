@@ -1,4 +1,4 @@
-use arpy::{FnRemote, MimeType, RpcClient, RpcId};
+use arpy::{FnRemote, MimeType, RpcClient};
 use async_trait::async_trait;
 use reqwest::{
     header::{HeaderValue, ACCEPT, CONTENT_TYPE},
@@ -38,7 +38,7 @@ impl<'a> RpcClient for Connection<'a> {
 
     async fn call<F>(&mut self, function: &F) -> Result<F::Output, Self::Error>
     where
-        F: FnRemote + RpcId,
+        F: FnRemote,
     {
         let content_type = MimeType::Cbor;
         let mut body = Vec::new();

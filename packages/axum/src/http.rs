@@ -9,9 +9,9 @@ use axum::{
 };
 use hyper::{body, header::CONTENT_TYPE};
 
-pub fn handle_rpc<T: FnRemote + 'static>() -> MethodRouter
+pub fn handle_rpc<T>() -> MethodRouter
 where
-    for<'a> &'a T: Send,
+    T: FnRemote + Send + Sync + 'static,
 {
     post(handler::<T>)
 }

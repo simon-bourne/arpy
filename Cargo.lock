@@ -59,6 +59,7 @@ dependencies = [
 name = "arpy-example-reqwest"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "arpy",
  "arpy-example-common",
  "arpy-reqwest",

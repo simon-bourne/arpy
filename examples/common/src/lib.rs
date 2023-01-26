@@ -19,3 +19,23 @@ impl FnRemote for MyFunction {
 impl RpcId for MyFunction {
     const ID: &'static str = "my-function";
 }
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct MyFallibleFunction(pub String);
+
+#[async_trait]
+impl FnRemote for MyFallibleFunction {
+    type Output = Result<String, String>;
+
+    async fn run(&self) -> Self::Output {
+        if self.0.is_empty() {
+            Err("No name provided".to_string())
+        } else {
+            Ok(format!("Hello, {}", self.0))
+        }
+    }
+}
+
+impl RpcId for MyFallibleFunction {
+    const ID: &'static str = "my-fallible-function";
+}

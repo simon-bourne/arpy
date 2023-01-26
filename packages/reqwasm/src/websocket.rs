@@ -1,4 +1,4 @@
-use arpy::{FnRemote, RpcClient, RpcId};
+use arpy::{FnRemote, RpcClient};
 use async_trait::async_trait;
 use futures::{
     stream::{SplitSink, SplitStream},
@@ -26,7 +26,7 @@ impl RpcClient for Connection {
 
     async fn call<F>(&mut self, function: &F) -> Result<F::Output, Self::Error>
     where
-        F: FnRemote + RpcId,
+        F: FnRemote,
     {
         self.write
             .send(Message::Bytes(F::ID.as_bytes().to_vec()))

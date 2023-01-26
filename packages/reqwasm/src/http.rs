@@ -1,4 +1,4 @@
-use arpy::{FnRemote, MimeType, RpcClient, RpcId};
+use arpy::{FnRemote, MimeType, RpcClient};
 use async_trait::async_trait;
 use js_sys::Uint8Array;
 use reqwasm::http;
@@ -19,7 +19,7 @@ impl RpcClient for Connection {
 
     async fn call<F>(&mut self, function: &F) -> Result<F::Output, Self::Error>
     where
-        F: FnRemote + RpcId,
+        F: FnRemote,
     {
         let content_type = MimeType::Cbor;
         let mut body = Vec::new();

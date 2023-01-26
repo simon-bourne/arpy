@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use anyhow::bail;
-use arpy::{FnRemote, RpcId};
+use arpy::FnRemote;
 use axum::{
     extract::{
         ws::{Message, WebSocket},
@@ -21,8 +21,7 @@ impl WebSocketRouter {
 
     pub fn handle<T>(mut self) -> Self
     where
-        for<'a> &'a T: Send,
-        T: FnRemote + RpcId + 'static,
+        T: FnRemote + Send + Sync + 'static,
     {
         let id = T::ID.as_bytes().to_vec();
         self.0
@@ -33,8 +32,7 @@ impl WebSocketRouter {
 
     async fn run<T>(input: Vec<u8>) -> anyhow::Result<Vec<u8>>
     where
-        for<'a> &'a T: Send,
-        T: FnRemote + RpcId + 'static,
+        T: FnRemote,
     {
         let function: T = ciborium::de::from_reader(input.as_slice())?;
         let result = function.run().await;
