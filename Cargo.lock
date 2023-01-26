@@ -998,8 +998,10 @@ dependencies = [
  "ciborium",
  "reqwest",
  "rpc",
+ "rpc-test",
  "serde",
  "thiserror",
+ "tokio",
 ]
 
 [[package]]
@@ -1009,10 +1011,8 @@ dependencies = [
  "async-trait",
  "axum",
  "hyper",
- "reqwest",
  "rpc",
  "rpc-axum",
- "rpc-reqwest",
  "serde",
  "tokio",
  "tower-http",

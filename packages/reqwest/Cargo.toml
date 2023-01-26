@@ -10,3 +10,7 @@ ciborium = "0.2.0"
 reqwest = "0.11.14"
 serde = { version = "1.0.152", features = ["derive"] }
 thiserror = "1.0.38"
+
+[dev-dependencies]
+rpc-test = { path = "../test" }
+tokio = { version = "1.24.2", features = ["macros", "process"] }
