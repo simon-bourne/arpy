@@ -13,7 +13,7 @@ async fn main() -> Result<()> {
     .await
 }
 
-async fn app<Rpc: RpcClient>(mut connection: Rpc) -> Result<()> {
+async fn app(mut connection: impl RpcClient) -> Result<()> {
     let response = MyFunction("Arpy".to_string()).call(&mut connection).await?;
     println!("Response: {response}");
     let response = MyFallibleFunction("Arpy C".to_string())
