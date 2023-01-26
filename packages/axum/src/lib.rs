@@ -1,13 +1,11 @@
 use axum::Router;
 use rpc::{FnRemote, RpcId};
-use websocket::WebSocketRouter;
 
-pub mod http;
-pub mod websocket;
+mod http;
+mod websocket;
 
-// TODO: Websockets should implement routing on the websocket, so we don't have
-// to open multiple websockets. We need a WebSocket builder and have the
-// implementations send/expect a "type" message before the main message.
+pub use websocket::WebSocketRouter;
+
 pub trait RpcRoute {
     fn http_rpc_route<T: FnRemote + RpcId + 'static>(self, prefix: &str) -> Self
     where
