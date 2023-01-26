@@ -1,10 +1,10 @@
 use reqwest::Client;
-use rpc::RpcClient;
-use rpc_example_rpc::{MyFunction, PORT};
-use rpc_reqwest::Connection;
+use arpy::RpcClient;
+use arpy_example_common::{MyFunction, PORT};
+use arpy_reqwest::Connection;
 
 #[tokio::main]
-async fn main() -> Result<(), rpc_reqwest::Error> {
+async fn main() -> Result<(), arpy_reqwest::Error> {
     // TODO: We want to be able to call any registered function from the same
     // connection.
     app(Connection::new(

@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use rpc::{FnRemote, RpcId};
+use arpy::{FnRemote, RpcId};
 use serde::{Deserialize, Serialize};
 
 #[cfg(not(target_arch = "wasm32"))]

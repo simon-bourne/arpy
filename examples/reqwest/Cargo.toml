@@ -1,12 +1,12 @@
 [package]
-name = "rpc-example-reqwest"
+name = "arpy-example-reqwest"
 version = "0.1.0"
 edition = "2021"
 publish = false
 
 [dependencies]
-rpc = { path = "../../packages/rpc" }
-rpc-reqwest = { path = "../../packages/reqwest" }
-rpc-example-rpc = { path = "../rpc" }
+arpy = { path = "../../packages/arpy" }
+arpy-reqwest = { path = "../../packages/reqwest" }
+arpy-example-common = { path = "../common" }
 reqwest = "0.11.14"
 tokio = { version = "1.21.2", features = ["full"] }

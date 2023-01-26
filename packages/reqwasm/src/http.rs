@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use js_sys::Uint8Array;
 use reqwasm::http;
-use rpc::{FnRemote, MimeType, RpcClient, RpcId};
+use arpy::{FnRemote, MimeType, RpcClient, RpcId};
 
 use crate::Error;
 

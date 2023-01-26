@@ -9,6 +9,111 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2cb2f989d18dd141ab8ae82f64d1a8cdd37e0840f73a406896cf5e99502fab61"
 
 [[package]]
+name = "arpy"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "arpy-axum"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "arpy",
+ "async-trait",
+ "axum",
+ "ciborium",
+ "futures",
+ "hyper",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "arpy-example-axum"
+version = "0.1.0"
+dependencies = [
+ "arpy",
+ "arpy-axum",
+ "arpy-example-common",
+ "axum",
+ "tokio",
+ "tower-http",
+]
+
+[[package]]
+name = "arpy-example-common"
+version = "0.1.0"
+dependencies = [
+ "arpy",
+ "async-trait",
+ "serde",
+]
+
+[[package]]
+name = "arpy-example-reqwest"
+version = "0.1.0"
+dependencies = [
+ "arpy",
+ "arpy-example-common",
+ "arpy-reqwest",
+ "reqwest",
+ "tokio",
+]
+
+[[package]]
+name = "arpy-reqwasm"
+version = "0.1.0"
+dependencies = [
+ "arpy",
+ "arpy-test",
+ "async-trait",
+ "ciborium",
+ "futures",
+ "js-sys",
+ "reqwasm",
+ "serde",
+ "thiserror",
+ "tokio",
+ "wasm-bindgen-test",
+]
+
+[[package]]
+name = "arpy-reqwest"
+version = "0.1.0"
+dependencies = [
+ "arpy",
+ "arpy-test",
+ "async-trait",
+ "ciborium",
+ "reqwest",
+ "serde",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
+name = "arpy-test"
+version = "0.1.0"
+dependencies = [
+ "arpy",
+ "arpy-axum",
+ "async-trait",
+ "axum",
+ "hyper",
+ "serde",
+ "tokio",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "async-trait"
 version = "0.1.63"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -946,111 +1051,6 @@ dependencies = [
  "wasm-bindgen-futures",
  "web-sys",
  "winreg",
-]
-
-[[package]]
-name = "rpc"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "serde",
- "thiserror",
-]
-
-[[package]]
-name = "rpc-axum"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "axum",
- "ciborium",
- "futures",
- "hyper",
- "rpc",
- "serde",
- "serde_json",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "rpc-example-axum"
-version = "0.1.0"
-dependencies = [
- "axum",
- "rpc",
- "rpc-axum",
- "rpc-example-rpc",
- "tokio",
- "tower-http",
-]
-
-[[package]]
-name = "rpc-example-reqwest"
-version = "0.1.0"
-dependencies = [
- "reqwest",
- "rpc",
- "rpc-example-rpc",
- "rpc-reqwest",
- "tokio",
-]
-
-[[package]]
-name = "rpc-example-rpc"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "rpc",
- "serde",
-]
-
-[[package]]
-name = "rpc-reqwasm"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "ciborium",
- "futures",
- "js-sys",
- "reqwasm",
- "rpc",
- "rpc-test",
- "serde",
- "thiserror",
- "tokio",
- "wasm-bindgen-test",
-]
-
-[[package]]
-name = "rpc-reqwest"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "ciborium",
- "reqwest",
- "rpc",
- "rpc-test",
- "serde",
- "thiserror",
- "tokio",
-]
-
-[[package]]
-name = "rpc-test"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "axum",
- "hyper",
- "rpc",
- "rpc-axum",
- "serde",
- "tokio",
- "tower-http",
- "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]

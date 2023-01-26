@@ -1,4 +1,4 @@
-use rpc_test::{server::dev_server, PORT};
+use arpy_test::{server::dev_server, PORT};
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
 

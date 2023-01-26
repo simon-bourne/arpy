@@ -1,13 +1,13 @@
 [package]
-name = "rpc-example-axum"
+name = "arpy-example-axum"
 version = "0.1.0"
 edition = "2021"
 publish = false
 
 [dependencies]
-rpc = { path = "../../packages/rpc" }
-rpc-axum = { path = "../../packages/axum" }
-rpc-example-rpc = { path = "../rpc" }
+arpy = { path = "../../packages/arpy" }
+arpy-axum = { path = "../../packages/axum" }
+arpy-example-common = { path = "../common" }
 axum = { version = "0.6.3", features = ["ws", "headers"] }
 tokio = { version = "1.21.2", features = ["full"] }
 tower-http = { version = "0.3.5", features = ["cors"] }

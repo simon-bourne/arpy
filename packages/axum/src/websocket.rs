@@ -9,7 +9,7 @@ use axum::{
     routing::{get, MethodRouter},
 };
 use futures::future::BoxFuture;
-use rpc::{FnRemote, RpcId};
+use arpy::{FnRemote, RpcId};
 
 #[derive(Default)]
 pub struct WebSocketRouter(HashMap<Id, RpcHandler>);

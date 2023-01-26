@@ -4,7 +4,7 @@ use futures::{
     SinkExt, StreamExt,
 };
 use reqwasm::websocket::{futures::WebSocket, Message};
-use rpc::{FnRemote, RpcClient, RpcId};
+use arpy::{FnRemote, RpcClient, RpcId};
 
 use crate::Error;
 

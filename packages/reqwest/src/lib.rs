@@ -3,7 +3,7 @@ use reqwest::{
     header::{HeaderValue, ACCEPT, CONTENT_TYPE},
     Client,
 };
-use rpc::{FnRemote, MimeType, RpcClient, RpcId};
+use arpy::{FnRemote, MimeType, RpcClient, RpcId};
 use thiserror::Error;
 
 pub struct Connection<'a> {

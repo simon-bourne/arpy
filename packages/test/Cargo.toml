@@ -1,16 +1,16 @@
 [package]
-name = "rpc-test"
+name = "arpy-test"
 version = "0.1.0"
 edition = "2021"
 publish = false
 
 [dependencies]
-rpc = { path = "../rpc" }
+arpy = { path = "../arpy" }
 async-trait = "0.1.63"
 serde = { version = "1.0.152", features = ["derive"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-rpc-axum = { path = "../axum" }
+arpy-axum = { path = "../axum" }
 axum = { version = "0.6.3", features = ["ws", "headers"] }
 tokio = { version = "1.21.2", features = ["full"] }
 hyper = "0.14.23"

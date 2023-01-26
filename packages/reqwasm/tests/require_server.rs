@@ -1,8 +1,8 @@
 //! These tests are run from `provide_server`
 use reqwasm::websocket::futures::WebSocket;
-use rpc::RpcClient;
-use rpc_reqwasm::{http, websocket};
-use rpc_test::Add;
+use arpy::RpcClient;
+use arpy_reqwasm::{http, websocket};
+use arpy_test::Add;
 use wasm_bindgen_test::{wasm_bindgen_test, wasm_bindgen_test_configure};
 
 wasm_bindgen_test_configure!(run_in_browser);

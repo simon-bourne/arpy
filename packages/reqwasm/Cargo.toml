@@ -1,10 +1,10 @@
 [package]
-name = "rpc-reqwasm"
+name = "arpy-reqwasm"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-rpc = { path = "../rpc" }
+arpy = { path = "../arpy" }
 async-trait = "0.1.63"
 ciborium = "0.2.0"
 reqwasm = "0.5.0"
@@ -15,7 +15,7 @@ futures = "0.3.25"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.33"
-rpc-test = { path = "../test" }
+arpy-test = { path = "../test" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 tokio = { version = "1.24.2", features = ["macros", "process"] }

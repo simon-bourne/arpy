@@ -2,7 +2,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use axum::{routing::IntoMakeService, Router, Server};
 use hyper::server::conn::AddrIncoming;
-use rpc_axum::{RpcRoute, WebSocketRouter};
+use arpy_axum::{RpcRoute, WebSocketRouter};
 use tower_http::cors::CorsLayer;
 
 use crate::{Add, TryMultiply};

@@ -7,7 +7,7 @@ use axum::{
     routing::{post, MethodRouter},
 };
 use hyper::{body, header::CONTENT_TYPE};
-use rpc::{FnRemote, MimeType};
+use arpy::{FnRemote, MimeType};
 
 pub fn handle_rpc<T: FnRemote + 'static>() -> MethodRouter
 where

@@ -1,9 +1,9 @@
 use std::{future::Future, net::SocketAddr};
 
+use arpy::RpcClient;
+use arpy_reqwest::Connection;
+use arpy_test::{server::dev_server, Add, TryMultiply};
 use reqwest::Client;
-use rpc::RpcClient;
-use rpc_reqwest::Connection;
-use rpc_test::{server::dev_server, Add, TryMultiply};
 
 #[tokio::test]
 async fn fallible_http_call() {

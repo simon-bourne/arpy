@@ -1,8 +1,8 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use axum::{Router, Server};
-use rpc_axum::{RpcRoute, WebSocketRouter};
-use rpc_example_rpc::{MyFunction, PORT};
+use arpy_axum::{RpcRoute, WebSocketRouter};
+use arpy_example_common::{MyFunction, PORT};
 use tower_http::cors::CorsLayer;
 
 #[tokio::main]
