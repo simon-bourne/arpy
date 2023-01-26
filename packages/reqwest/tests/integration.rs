@@ -1,6 +1,6 @@
 use std::{future::Future, net::SocketAddr};
 
-use arpy::RpcClient;
+use arpy::{FnClient, FnTryCient};
 use arpy_reqwest::Connection;
 use arpy_test::{server::dev_server, Add, TryMultiply};
 use reqwest::Client;
@@ -9,7 +9,10 @@ use reqwest::Client;
 async fn fallible_http_call() {
     end_to_end_test(|port| async move {
         let client = Client::new();
-        let result = connection(&client, port).call(&Add(2, 3)).await.unwrap();
+        let result = Add(2, 3)
+            .call(&mut connection(&client, port))
+            .await
+            .unwrap();
         assert_eq!(result, 5);
     })
     .await
@@ -19,8 +22,8 @@ async fn fallible_http_call() {
 async fn infallible_http_call() {
     end_to_end_test(|port| async move {
         let client = Client::new();
-        let result = connection(&client, port)
-            .try_call(&TryMultiply(2, 3))
+        let result = TryMultiply(2, 3)
+            .try_call(&mut connection(&client, port))
             .await
             .unwrap();
         assert_eq!(result, 6);
