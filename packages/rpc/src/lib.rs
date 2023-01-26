@@ -1,4 +1,4 @@
-use std::{fmt::Debug, str::FromStr};
+use std::{error::Error, fmt::Debug, str::FromStr};
 
 use async_trait::async_trait;
 use serde::{de::DeserializeOwned, Serialize};
@@ -21,7 +21,7 @@ pub enum ErrorFrom<C, S> {
 
 #[async_trait(?Send)]
 pub trait RpcClient {
-    type Error;
+    type Error: Error + Debug;
 
     async fn call<F>(&mut self, function: &F) -> Result<F::Output, Self::Error>
     where
