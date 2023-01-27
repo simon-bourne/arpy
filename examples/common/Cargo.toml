@@ -6,5 +6,4 @@ publish = false
 
 [dependencies]
 arpy = { path = "../../packages/arpy" }
-async-trait = "0.1.63"
 serde = { version = "1.0.152", features = ["derive"] }

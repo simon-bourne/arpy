@@ -5,7 +5,6 @@ use async_trait::async_trait;
 use serde::{de::DeserializeOwned, Serialize};
 use thiserror::Error;
 
-#[async_trait]
 pub trait FnRemote: id::RpcId + Serialize + DeserializeOwned + Debug {
     type Output: Serialize + DeserializeOwned + Debug;
 }
