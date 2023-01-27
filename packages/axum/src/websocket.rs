@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use anyhow::bail;
-use arpy::FnRemote;
+use arpy::{FnRemote, FnRemoteBody};
 use axum::{
     extract::{
         ws::{Message, WebSocket},
@@ -19,23 +19,28 @@ impl WebSocketRouter {
         Self::default()
     }
 
-    pub fn handle<T>(mut self) -> Self
+    pub fn handle<F, T>(mut self, f: F) -> Self
     where
+        F: for<'a> FnRemoteBody<'a, T> + Send + Sync + 'static,
         T: FnRemote + Send + Sync + 'static,
     {
         let id = T::ID.as_bytes().to_vec();
-        self.0
-            .insert(id, Box::new(|body| Box::pin(Self::run::<T>(body))));
+        let f = Arc::new(f);
+        self.0.insert(
+            id,
+            Box::new(move |body| Box::pin(Self::run(f.clone(), body))),
+        );
 
         self
     }
 
-    async fn run<T>(input: Vec<u8>) -> anyhow::Result<Vec<u8>>
+    async fn run<F, T>(f: Arc<F>, input: Vec<u8>) -> anyhow::Result<Vec<u8>>
     where
-        T: FnRemote,
+        F: for<'a> FnRemoteBody<'a, T> + Send + Sync + 'static,
+        T: FnRemote + Send + Sync + 'static,
     {
-        let function: T = ciborium::de::from_reader(input.as_slice())?;
-        let result = function.run().await;
+        let args: T = ciborium::de::from_reader(input.as_slice())?;
+        let result = f.run(&args).await;
         let mut body = Vec::new();
         ciborium::ser::into_writer(&result, &mut body).unwrap();
         Ok(body)

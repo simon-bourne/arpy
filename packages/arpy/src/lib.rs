@@ -1,4 +1,4 @@
-use std::{error::Error, fmt::Debug, str::FromStr};
+use std::{error::Error, fmt::Debug, future::Future, str::FromStr};
 
 pub use arpy_macros::RpcId;
 use async_trait::async_trait;
@@ -8,8 +8,28 @@ use thiserror::Error;
 #[async_trait]
 pub trait FnRemote: id::RpcId + Serialize + DeserializeOwned + Debug {
     type Output: Serialize + DeserializeOwned + Debug;
+}
 
-    async fn run(&self) -> Self::Output;
+pub trait FnRemoteBody<'a, Args>
+where
+    Args: FnRemote + 'a,
+{
+    type Fut: Future<Output = Args::Output> + Send + Sync + 'a;
+
+    fn run(&self, args: &'a Args) -> Self::Fut;
+}
+
+impl<'a, Args, Fut, F> FnRemoteBody<'a, Args> for F
+where
+    Args: FnRemote + 'a,
+    F: Fn(&'a Args) -> Fut,
+    Fut: Future<Output = Args::Output> + Send + Sync + 'a,
+{
+    type Fut = Fut;
+
+    fn run(&self, args: &'a Args) -> Self::Fut {
+        self(args)
+    }
 }
 
 #[async_trait(?Send)]

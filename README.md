@@ -9,10 +9,6 @@ pub struct Add(pub i32, pub i32);
 #[async_trait]
 impl FnRemote for Add {
     type Output = i32;
-
-    async fn run(&self) -> Self::Output {
-        self.0 + self.1
-    }
 }
 
 #[derive(RpcId, Serialize, Deserialize, Debug)]
@@ -21,21 +17,25 @@ pub struct TryMultiply(pub i32, pub i32);
 #[async_trait]
 impl FnRemote for TryMultiply {
     type Output = Result<i32, ()>;
-
-    async fn run(&self) -> Self::Output {
-        Ok(self.0 * self.1)
-    }
 }
 ```
 
 Then set up a server, using one of various implementations. For example, using the `axum` server:
 
 ```rust
-let app = Router::new()
-    .http_rpc_route::<Add>("/http")
-    .http_rpc_route::<TryMultiply>("/http");
+async fn add(args: &Add) -> i32 {
+    args.0 + args.1
+}
 
-Server::bind(&SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), port))
+async fn try_multiply(args: &TryMultiply) -> Result<i32, ()> {
+    Ok(args.0 * args.1)
+}
+
+let app = Router::new()
+    .http_rpc_route("/http", add)
+    .http_rpc_route("/http", try_multiply);
+
+Server::bind(&SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 9090))
     .serve(app.into_make_service())
     .await
     .unwrap();

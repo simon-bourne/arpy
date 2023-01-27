@@ -5,14 +5,26 @@ use arpy_example_common::{MyFallibleFunction, MyFunction, PORT};
 use axum::{Router, Server};
 use tower_http::cors::CorsLayer;
 
+async fn my_function(args: &MyFunction) -> String {
+    format!("Hello, {}", args.0)
+}
+
+async fn my_fallible_function(args: &MyFallibleFunction) -> Result<String, String> {
+    if args.0.is_empty() {
+        Err("No name provided".to_string())
+    } else {
+        Ok(format!("Hello, {}", args.0))
+    }
+}
+
 #[tokio::main]
 async fn main() {
     let ws = WebSocketRouter::new()
-        .handle::<MyFunction>()
-        .handle::<MyFallibleFunction>();
+        .handle(my_function)
+        .handle(my_fallible_function);
     let app = Router::new()
-        .http_rpc_route::<MyFunction>("/http")
-        .http_rpc_route::<MyFallibleFunction>("/http")
+        .http_rpc_route("/http", my_function)
+        .http_rpc_route("/http", my_fallible_function)
         .ws_rpc_route("/ws", ws)
         .layer(CorsLayer::permissive());
 

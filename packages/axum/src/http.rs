@@ -1,6 +1,6 @@
-use std::str::FromStr;
+use std::{str::FromStr, sync::Arc};
 
-use arpy::{FnRemote, MimeType};
+use arpy::{FnRemote, FnRemoteBody, MimeType};
 use axum::{
     body::{boxed, Body, Full},
     http::{header::ACCEPT, HeaderMap, HeaderValue, Request, StatusCode},
@@ -9,17 +9,24 @@ use axum::{
 };
 use hyper::{body, header::CONTENT_TYPE};
 
-pub fn handle_rpc<T>() -> MethodRouter
+pub fn handle_rpc<F, T>(f: F) -> MethodRouter
 where
+    F: for<'a> FnRemoteBody<'a, T> + Send + Sync + 'static,
     T: FnRemote + Send + Sync + 'static,
 {
-    post(handler::<T>)
+    let f = Arc::new(f);
+    post(move |headers: HeaderMap, request: Request<Body>| handler(f, headers, request))
 }
 
-async fn handler<T: FnRemote>(
+async fn handler<F, T>(
+    f: Arc<F>,
     headers: HeaderMap,
     request: Request<Body>,
-) -> Result<impl IntoResponse, StatusCode> {
+) -> Result<impl IntoResponse, StatusCode>
+where
+    F: for<'a> FnRemoteBody<'a, T>,
+    T: FnRemote,
+{
     let response_type = mime_type(headers.get(ACCEPT))?;
 
     let body = body::to_bytes(request.into_body())
@@ -33,7 +40,7 @@ async fn handler<T: FnRemote>(
         MimeType::Json => serde_json::from_slice(body).map_err(|_| StatusCode::BAD_REQUEST)?,
     };
 
-    let response = T::run(&thunk).await;
+    let response = f.run(&thunk).await;
 
     match response_type {
         MimeType::Cbor => {
