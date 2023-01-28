@@ -28,6 +28,8 @@ pub enum Error {
     Send(reqwest::Error),
     #[error("Couldn't receive response: {0}")]
     Receive(reqwest::Error),
+    #[error("HTTP error code: {0}")]
+    Http(reqwest::StatusCode),
     #[error("Invalid response 'content_type'")]
     InvalidResponseType(HeaderValue),
 }
@@ -54,6 +56,12 @@ impl<'a> RpcClient for Connection<'a> {
             .send()
             .await
             .map_err(Error::Send)?;
+
+        let status = result.status();
+
+        if !status.is_success() {
+            return Err(Error::Http(status));
+        }
 
         if let Some(result_type) = result.headers().get(CONTENT_TYPE) {
             if result_type != HeaderValue::from_static(content_type.as_str()) {

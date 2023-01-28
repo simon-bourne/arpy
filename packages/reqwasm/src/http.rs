@@ -37,6 +37,13 @@ impl RpcClient for Connection {
             .await
             .map_err(Error::send)?;
 
+        if !result.ok() {
+            return Err(Error::Receive(format!(
+                "HTTP error code {}",
+                result.status()
+            )));
+        }
+
         if let Some(result_type) = result.headers().get(CONTENT_TYPE) {
             if result_type != content_type.as_str() {
                 return Err(Error::InvalidResponseType(result_type));
