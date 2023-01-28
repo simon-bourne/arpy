@@ -6,5 +6,5 @@ edition = "2021"
 [dependencies]
 arpy = { path = "../arpy" }
 ciborium = "0.2.0"
-anyhow = "1.0.68"
 futures = "0.3.25"
+thiserror = "1.0.38"

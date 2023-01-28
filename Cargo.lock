@@ -407,10 +407,10 @@ dependencies = [
 name = "arpy-server"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "arpy",
  "ciborium",
  "futures",
+ "thiserror",
 ]
 
 [[package]]
