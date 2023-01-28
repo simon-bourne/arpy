@@ -1,5 +1,5 @@
-use arpy::{FnRemote, FnRemoteBody};
-use arpy_server::WebSocketRouter;
+use arpy::{FnRemote};
+use arpy_server::{WebSocketRouter, FnRemoteBody};
 use axum::{
     extract::{ws::WebSocket, WebSocketUpgrade},
     routing::get,

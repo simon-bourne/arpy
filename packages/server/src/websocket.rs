@@ -1,9 +1,11 @@
 use std::{collections::HashMap, io, result, sync::Arc};
 
-use arpy::{FnRemote, FnRemoteBody};
+use arpy::FnRemote;
 use ciborium::de;
 use futures::future::BoxFuture;
 use thiserror::Error;
+
+use crate::FnRemoteBody;
 
 #[derive(Default)]
 pub struct WebSocketRouter(HashMap<Id, RpcHandler>);

@@ -1,6 +1,7 @@
 use std::{str::FromStr, sync::Arc};
 
-use arpy::{FnRemote, FnRemoteBody, MimeType};
+use arpy::{FnRemote, MimeType};
+use arpy_server::FnRemoteBody;
 use axum::{
     body::{boxed, Body, Full},
     http::{header::ACCEPT, HeaderMap, HeaderValue, Request, StatusCode},
