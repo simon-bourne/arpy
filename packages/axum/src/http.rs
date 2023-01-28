@@ -11,6 +11,7 @@ use axum::{
     routing::{post, MethodRouter},
 };
 use hyper::header::CONTENT_TYPE;
+use serde::Serialize;
 
 pub fn handle_rpc<F, T>(f: F) -> MethodRouter
 where
@@ -52,6 +53,58 @@ where
     }
 }
 
+pub struct ArpyResponse<T> {
+    mime_type: MimeType,
+    response: T,
+}
+
+impl<T> ArpyResponse<T> {
+    pub fn new(mime_type: MimeType, response: T) -> Self {
+        Self {
+            mime_type,
+            response,
+        }
+    }
+}
+
+impl<T> IntoResponse for ArpyResponse<T>
+where
+    T: Serialize,
+{
+    fn into_response(self) -> Response {
+        match self.mime_type {
+            MimeType::Cbor => cbor_response(self.response).into_response(),
+            MimeType::Json => json_response(self.response).into_response(),
+        }
+    }
+}
+
+fn cbor_response<T>(response: T) -> Result<impl IntoResponse, StatusCode>
+where
+    T: Serialize,
+{
+    let mut body = Vec::new();
+
+    ciborium::ser::into_writer(&response, &mut body).map_err(|_| StatusCode::BAD_REQUEST)?;
+
+    Response::builder()
+        .header(CONTENT_TYPE, MimeType::Cbor.as_str())
+        .body(boxed(Full::from(body)))
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+}
+
+fn json_response<T>(response: T) -> Result<impl IntoResponse, StatusCode>
+where
+    T: Serialize,
+{
+    let body = serde_json::to_vec(&response).map_err(|_| StatusCode::BAD_REQUEST)?;
+
+    Response::builder()
+        .header(CONTENT_TYPE, "application/json")
+        .body(boxed(Full::from(body)))
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+}
+
 async fn handler<F, T>(
     f: Arc<F>,
     headers: HeaderMap,
@@ -63,28 +116,7 @@ where
 {
     let response = f.run(args).await;
     let response_type = mime_type(headers.get(ACCEPT))?;
-
-    match response_type {
-        MimeType::Cbor => {
-            let mut body = Vec::new();
-
-            ciborium::ser::into_writer(&response, &mut body)
-                .map_err(|_| StatusCode::BAD_REQUEST)?;
-
-            Response::builder()
-                .header(CONTENT_TYPE, MimeType::Cbor.as_str())
-                .body(boxed(Full::from(body)))
-                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
-        }
-        MimeType::Json => {
-            let body = serde_json::to_vec(&response).map_err(|_| StatusCode::BAD_REQUEST)?;
-
-            Response::builder()
-                .header(CONTENT_TYPE, "application/json")
-                .body(boxed(Full::from(body)))
-                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
-        }
-    }
+    Ok(ArpyResponse::new(response_type, response))
 }
 
 fn mime_type(header_value: Option<&HeaderValue>) -> Result<MimeType, StatusCode> {
