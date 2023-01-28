@@ -1,7 +1,8 @@
 mod websocket;
 
-use arpy::FnRemote;
 use std::future::Future;
+
+use arpy::FnRemote;
 pub use websocket::{WebSocketHandler, WebSocketRouter};
 
 pub trait FnRemoteBody<Args>
