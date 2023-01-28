@@ -16,3 +16,15 @@ pub struct MyFallibleFunction(pub String);
 impl FnRemote for MyFallibleFunction {
     type Output = Result<String, String>;
 }
+
+pub async fn my_function(args: MyFunction) -> String {
+    format!("Hello, {}", args.0)
+}
+
+pub async fn my_fallible_function(args: MyFallibleFunction) -> Result<String, String> {
+    if args.0.is_empty() {
+        Err("No name provided".to_string())
+    } else {
+        Ok(format!("Hello, {}", args.0))
+    }
+}

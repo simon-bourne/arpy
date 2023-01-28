@@ -1,22 +1,10 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use arpy_axum::RpcRoute;
-use arpy_example_common::{MyFallibleFunction, MyFunction, PORT};
+use arpy_example_common::{my_fallible_function, my_function, PORT};
 use arpy_server::WebSocketRouter;
 use axum::{Router, Server};
 use tower_http::cors::CorsLayer;
-
-async fn my_function(args: MyFunction) -> String {
-    format!("Hello, {}", args.0)
-}
-
-async fn my_fallible_function(args: MyFallibleFunction) -> Result<String, String> {
-    if args.0.is_empty() {
-        Err("No name provided".to_string())
-    } else {
-        Ok(format!("Hello, {}", args.0))
-    }
-}
 
 #[tokio::main]
 async fn main() {
