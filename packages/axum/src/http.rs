@@ -19,7 +19,7 @@ where
     T: FnRemote + Send + Sync + 'static,
 {
     let f = Arc::new(f);
-    post(move |headers: HeaderMap, arpy: ArpyRequest<T>| handler(f, headers, arpy))
+    post(move |headers: HeaderMap, arpy: ArpyRequest<T>| handler(headers, arpy, f))
 }
 
 pub struct ArpyRequest<T>(T);
@@ -106,9 +106,9 @@ where
 }
 
 async fn handler<F, T>(
-    f: Arc<F>,
     headers: HeaderMap,
     ArpyRequest(args): ArpyRequest<T>,
+    f: Arc<F>,
 ) -> Result<impl IntoResponse, StatusCode>
 where
     F: FnRemoteBody<T>,
