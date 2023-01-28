@@ -7,7 +7,7 @@ use axum::{
 };
 use websocket::WebSocketHandler;
 
-mod http;
+pub mod http;
 mod websocket;
 
 pub trait RpcRoute {

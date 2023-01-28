@@ -105,7 +105,7 @@ where
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
-async fn handler<F, T>(
+pub async fn handler<F, T>(
     headers: HeaderMap,
     ArpyRequest(args): ArpyRequest<T>,
     f: Arc<F>,
