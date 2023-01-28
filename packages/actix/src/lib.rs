@@ -10,7 +10,6 @@ use arpy_server::{FnRemoteBody, WebSocketRouter};
 use websocket::WebSocketHandler;
 
 mod http;
-
 mod websocket;
 
 pub trait RpcApp {
