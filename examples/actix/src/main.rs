@@ -3,7 +3,7 @@ use arpy_actix::RpcApp;
 use arpy_server::WebSocketRouter;
 use arpy_test::Add;
 
-async fn add(args: &Add) -> i32 {
+async fn add(args: Add) -> i32 {
     args.0 + args.1
 }
 

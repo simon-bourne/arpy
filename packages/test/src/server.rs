@@ -8,11 +8,11 @@ use tower_http::cors::CorsLayer;
 
 use crate::{Add, TryMultiply};
 
-async fn add(args: &Add) -> i32 {
+async fn add(args: Add) -> i32 {
     args.0 + args.1
 }
 
-async fn try_multiply(args: &TryMultiply) -> Result<i32, ()> {
+async fn try_multiply(args: TryMultiply) -> Result<i32, ()> {
     Ok(args.0 * args.1)
 }
 

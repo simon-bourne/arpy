@@ -15,7 +15,7 @@ impl WebSocketRouter {
 
     pub fn handle<F, T>(mut self, f: F) -> Self
     where
-        F: for<'a> FnRemoteBody<'a, T> + Send + Sync + 'static,
+        F: FnRemoteBody<T> + Send + Sync + 'static,
         T: FnRemote + Send + Sync + 'static,
     {
         let id = T::ID.as_bytes().to_vec();
@@ -30,12 +30,12 @@ impl WebSocketRouter {
 
     async fn run<F, T>(f: Arc<F>, input: Vec<u8>) -> Result<Vec<u8>>
     where
-        F: for<'a> FnRemoteBody<'a, T> + Send + Sync + 'static,
+        F: FnRemoteBody<T> + Send + Sync + 'static,
         T: FnRemote + Send + Sync + 'static,
     {
         let args: T =
             ciborium::de::from_reader(input.as_slice()).map_err(Error::Deserialization)?;
-        let result = f.run(&args).await;
+        let result = f.run(args).await;
         let mut body = Vec::new();
         ciborium::ser::into_writer(&result, &mut body).unwrap();
         Ok(body)

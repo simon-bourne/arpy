@@ -9,31 +9,32 @@ pub trait FnRemote: id::RpcId + Serialize + DeserializeOwned + Debug {
     type Output: Serialize + DeserializeOwned + Debug;
 }
 
-pub trait FnRemoteBody<'a, Args>
+// TODO: Move to server?
+pub trait FnRemoteBody<Args>
 where
-    Args: FnRemote + 'a,
+    Args: FnRemote,
 {
-    type Fut: Future<Output = Args::Output> + Send + Sync + 'a;
+    type Fut: Future<Output = Args::Output> + Send + Sync;
 
-    fn run(&self, args: &'a Args) -> Self::Fut;
+    fn run(&self, args: Args) -> Self::Fut;
 }
 
-impl<'a, Args, Fut, F> FnRemoteBody<'a, Args> for F
+impl<Args, Fut, F> FnRemoteBody<Args> for F
 where
-    Args: FnRemote + 'a,
-    F: Fn(&'a Args) -> Fut,
-    Fut: Future<Output = Args::Output> + Send + Sync + 'a,
+    Args: FnRemote,
+    F: Fn(Args) -> Fut,
+    Fut: Future<Output = Args::Output> + Send + Sync,
 {
     type Fut = Fut;
 
-    fn run(&self, args: &'a Args) -> Self::Fut {
+    fn run(&self, args: Args) -> Self::Fut {
         self(args)
     }
 }
 
 #[async_trait(?Send)]
 pub trait FnClient: FnRemote {
-    async fn call<C>(&self, connection: &mut C) -> Result<Self::Output, C::Error>
+    async fn call<C>(self, connection: &mut C) -> Result<Self::Output, C::Error>
     where
         C: RpcClient,
     {
@@ -45,7 +46,7 @@ impl<T: FnRemote> FnClient for T {}
 
 #[async_trait(?Send)]
 pub trait FnTryCient<Success, Error>: FnRemote<Output = Result<Success, Error>> {
-    async fn try_call<C>(&self, connection: &mut C) -> Result<Success, ErrorFrom<C::Error, Error>>
+    async fn try_call<C>(self, connection: &mut C) -> Result<Success, ErrorFrom<C::Error, Error>>
     where
         C: RpcClient,
     {
@@ -70,13 +71,13 @@ pub enum ErrorFrom<C, S> {
 pub trait RpcClient {
     type Error: Error + Debug + Send + Sync + 'static;
 
-    async fn call<F>(&mut self, function: &F) -> Result<F::Output, Self::Error>
+    async fn call<F>(&mut self, function: F) -> Result<F::Output, Self::Error>
     where
         F: FnRemote;
 
     async fn try_call<F, Success, Error>(
         &mut self,
-        function: &F,
+        function: F,
     ) -> Result<Success, ErrorFrom<Self::Error, Error>>
     where
         Self: Sized,

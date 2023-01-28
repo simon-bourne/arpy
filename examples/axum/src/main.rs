@@ -6,11 +6,11 @@ use arpy_server::WebSocketRouter;
 use axum::{Router, Server};
 use tower_http::cors::CorsLayer;
 
-async fn my_function(args: &MyFunction) -> String {
+async fn my_function(args: MyFunction) -> String {
     format!("Hello, {}", args.0)
 }
 
-async fn my_fallible_function(args: &MyFallibleFunction) -> Result<String, String> {
+async fn my_fallible_function(args: MyFallibleFunction) -> Result<String, String> {
     if args.0.is_empty() {
         Err("No name provided".to_string())
     } else {

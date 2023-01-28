@@ -11,7 +11,7 @@ use hyper::{body, header::CONTENT_TYPE};
 
 pub fn handle_rpc<F, T>(f: F) -> MethodRouter
 where
-    F: for<'a> FnRemoteBody<'a, T> + Send + Sync + 'static,
+    F: FnRemoteBody<T> + Send + Sync + 'static,
     T: FnRemote + Send + Sync + 'static,
 {
     let f = Arc::new(f);
@@ -24,7 +24,7 @@ async fn handler<F, T>(
     request: Request<Body>,
 ) -> Result<impl IntoResponse, StatusCode>
 where
-    F: for<'a> FnRemoteBody<'a, T>,
+    F: FnRemoteBody<T>,
     T: FnRemote,
 {
     let response_type = mime_type(headers.get(ACCEPT))?;
@@ -40,7 +40,7 @@ where
         MimeType::Json => serde_json::from_slice(body).map_err(|_| StatusCode::BAD_REQUEST)?,
     };
 
-    let response = f.run(&thunk).await;
+    let response = f.run(thunk).await;
 
     match response_type {
         MimeType::Cbor => {

@@ -24,7 +24,7 @@ impl Connection {
 impl RpcClient for Connection {
     type Error = Error;
 
-    async fn call<F>(&mut self, function: &F) -> Result<F::Output, Self::Error>
+    async fn call<F>(&mut self, function: F) -> Result<F::Output, Self::Error>
     where
         F: FnRemote,
     {

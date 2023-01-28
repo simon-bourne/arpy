@@ -13,7 +13,7 @@ mod websocket;
 pub trait RpcRoute {
     fn http_rpc_route<F, T>(self, prefix: &str, f: F) -> Self
     where
-        F: for<'a> FnRemoteBody<'a, T> + Send + Sync + 'static,
+        F: FnRemoteBody<T> + Send + Sync + 'static,
         T: FnRemote + Send + Sync + 'static;
 
     fn ws_rpc_route(self, route: &str, router: WebSocketRouter) -> Self;
@@ -22,7 +22,7 @@ pub trait RpcRoute {
 impl RpcRoute for Router {
     fn http_rpc_route<F, T>(self, prefix: &str, f: F) -> Self
     where
-        F: for<'a> FnRemoteBody<'a, T> + Send + Sync + 'static,
+        F: FnRemoteBody<T> + Send + Sync + 'static,
         T: FnRemote + Send + Sync + 'static,
     {
         let id = T::ID;

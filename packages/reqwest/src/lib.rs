@@ -36,7 +36,7 @@ pub enum Error {
 impl<'a> RpcClient for Connection<'a> {
     type Error = Error;
 
-    async fn call<F>(&mut self, function: &F) -> Result<F::Output, Self::Error>
+    async fn call<F>(&mut self, function: F) -> Result<F::Output, Self::Error>
     where
         F: FnRemote,
     {
