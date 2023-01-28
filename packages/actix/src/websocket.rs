@@ -35,10 +35,7 @@ impl WebSocketHandler {
                 Msg::Msg(body) => body,
             };
 
-            let reply = self
-                .0
-                .handle_msg(id.as_ref(), body.as_ref().to_vec())
-                .await?;
+            let reply = self.0.handle_msg(id.as_ref(), body.as_ref()).await?;
 
             session.binary(reply).await?;
         }

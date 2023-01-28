@@ -23,7 +23,7 @@ impl WebSocketHandler {
             let Some(params) = Self::next_msg(&mut socket).await?
             else { bail!("Expected params message")};
 
-            let output = self.0.handle_msg(&id, params).await?;
+            let output = self.0.handle_msg(&id, &params).await?;
             socket.send(Message::Binary(output)).await?;
         }
 

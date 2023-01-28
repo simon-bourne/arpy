@@ -30,13 +30,12 @@ impl WebSocketRouter {
         self
     }
 
-    async fn run<F, T>(f: Arc<F>, input: Vec<u8>) -> Result<Vec<u8>>
+    async fn run<F, T>(f: Arc<F>, input: &[u8]) -> Result<Vec<u8>>
     where
         F: FnRemoteBody<T> + Send + Sync + 'static,
         T: FnRemote + Send + Sync + 'static,
     {
-        let args: T =
-            ciborium::de::from_reader(input.as_slice()).map_err(Error::Deserialization)?;
+        let args: T = ciborium::de::from_reader(input).map_err(Error::Deserialization)?;
         let result = f.run(args).await;
         let mut body = Vec::new();
         ciborium::ser::into_writer(&result, &mut body).unwrap();
@@ -51,7 +50,7 @@ impl WebSocketHandler {
         Self(router.0)
     }
 
-    pub async fn handle_msg(&self, id: &[u8], params: Vec<u8>) -> Result<Vec<u8>> {
+    pub async fn handle_msg(&self, id: &[u8], params: &[u8]) -> Result<Vec<u8>> {
         let Some(function) = self.0.get(id)
         else { return Err(Error::FunctionNotFound) };
 
@@ -71,4 +70,4 @@ pub type Result<T> = result::Result<T, Error>;
 
 type Id = Vec<u8>;
 type RpcHandler =
-    Box<dyn Fn(Vec<u8>) -> BoxFuture<'static, Result<Vec<u8>>> + Send + Sync + 'static>;
+    Box<dyn for<'a> Fn(&'a [u8]) -> BoxFuture<'a, Result<Vec<u8>>> + Send + Sync + 'static>;
