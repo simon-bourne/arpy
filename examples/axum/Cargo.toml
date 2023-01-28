@@ -6,6 +6,7 @@ publish = false
 
 [dependencies]
 arpy = { path = "../../packages/arpy" }
+arpy-server = { path = "../../packages/server" }
 arpy-axum = { path = "../../packages/axum" }
 arpy-example-common = { path = "../common" }
 axum = { version = "0.6.3", features = ["ws", "headers"] }

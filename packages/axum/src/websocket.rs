@@ -1,57 +1,18 @@
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 use anyhow::bail;
-use arpy::{FnRemote, FnRemoteBody};
-use axum::{
-    extract::{
-        ws::{Message, WebSocket},
-        WebSocketUpgrade,
-    },
-    routing::{get, MethodRouter},
-};
-use futures::future::BoxFuture;
-
-#[derive(Default)]
-pub struct WebSocketRouter(HashMap<Id, RpcHandler>);
-
-impl WebSocketRouter {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn handle<F, T>(mut self, f: F) -> Self
-    where
-        F: for<'a> FnRemoteBody<'a, T> + Send + Sync + 'static,
-        T: FnRemote + Send + Sync + 'static,
-    {
-        let id = T::ID.as_bytes().to_vec();
-        let f = Arc::new(f);
-        self.0.insert(
-            id,
-            Box::new(move |body| Box::pin(Self::run(f.clone(), body))),
-        );
-
-        self
-    }
-
-    async fn run<F, T>(f: Arc<F>, input: Vec<u8>) -> anyhow::Result<Vec<u8>>
-    where
-        F: for<'a> FnRemoteBody<'a, T> + Send + Sync + 'static,
-        T: FnRemote + Send + Sync + 'static,
-    {
-        let args: T = ciborium::de::from_reader(input.as_slice())?;
-        let result = f.run(&args).await;
-        let mut body = Vec::new();
-        ciborium::ser::into_writer(&result, &mut body).unwrap();
-        Ok(body)
-    }
-}
+use arpy_server::WebSocketRouter;
+use axum::extract::ws::{Message, WebSocket};
 
 #[derive(Clone)]
-struct WebSocketHandler(Arc<HashMap<Id, RpcHandler>>);
+pub struct WebSocketHandler(Arc<arpy_server::WebSocketHandler>);
 
 impl WebSocketHandler {
-    async fn handle_socket(&self, socket: WebSocket) {
+    pub fn new(router: WebSocketRouter) -> Self {
+        Self(Arc::new(arpy_server::WebSocketHandler::new(router)))
+    }
+
+    pub async fn handle_socket(&self, socket: WebSocket) {
         if let Err(e) = self.try_handle_socket(socket).await {
             tracing::error!("Error on WebSocket: {e}");
         }
@@ -59,13 +20,10 @@ impl WebSocketHandler {
 
     async fn try_handle_socket(&self, mut socket: WebSocket) -> anyhow::Result<()> {
         while let Some(id) = Self::next_msg(&mut socket).await? {
-            let Some(function) = self.0.get(&id)
-            else { bail!("Function not found") };
-
             let Some(params) = Self::next_msg(&mut socket).await?
             else { bail!("Expected params message")};
 
-            let output = function(params).await?;
+            let output = self.0.handle_msg(&id, params).await?;
             socket.send(Message::Binary(output)).await?;
         }
 
@@ -86,16 +44,3 @@ impl WebSocketHandler {
         Ok(None)
     }
 }
-
-impl From<WebSocketRouter> for MethodRouter {
-    fn from(value: WebSocketRouter) -> Self {
-        let value = WebSocketHandler(Arc::new(value.0));
-
-        get(|ws: WebSocketUpgrade| async {
-            ws.on_upgrade(|socket: WebSocket| async move { value.handle_socket(socket).await })
-        })
-    }
-}
-
-type Id = Vec<u8>;
-type RpcHandler = Box<dyn Fn(Vec<u8>) -> BoxFuture<'static, anyhow::Result<Vec<u8>>> + Send + Sync>;

@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 arpy = { path = "../arpy" }
+arpy-server = { path = "../server" }
 async-trait = "0.1.63"
 axum = { version = "0.6.3", features = ["ws", "headers"] }
 ciborium = "0.2.0"

@@ -1,7 +1,8 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
-use arpy_axum::{RpcRoute, WebSocketRouter};
+use arpy_axum::RpcRoute;
 use arpy_example_common::{MyFallibleFunction, MyFunction, PORT};
+use arpy_server::WebSocketRouter;
 use axum::{Router, Server};
 use tower_http::cors::CorsLayer;
 

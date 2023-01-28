@@ -9,6 +9,7 @@ arpy = { path = "../arpy" }
 serde = { version = "1.0.152", features = ["derive"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+arpy-server = { path = "../server" }
 arpy-axum = { path = "../axum" }
 axum = { version = "0.6.3", features = ["ws", "headers"] }
 tokio = { version = "1.21.2", features = ["full"] }

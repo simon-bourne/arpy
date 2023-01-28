@@ -1,10 +1,14 @@
 use arpy::{FnRemote, FnRemoteBody};
-use axum::Router;
+use arpy_server::WebSocketRouter;
+use axum::{
+    extract::{ws::WebSocket, WebSocketUpgrade},
+    routing::get,
+    Router,
+};
+use websocket::WebSocketHandler;
 
 mod http;
 mod websocket;
-
-pub use websocket::WebSocketRouter;
 
 pub trait RpcRoute {
     fn http_rpc_route<F, T>(self, prefix: &str, f: F) -> Self
@@ -26,6 +30,15 @@ impl RpcRoute for Router {
     }
 
     fn ws_rpc_route(self, route: &str, router: WebSocketRouter) -> Self {
-        self.route(route, router.into())
+        let handler = WebSocketHandler::new(router);
+
+        self.route(
+            route,
+            get(|ws: WebSocketUpgrade| async {
+                ws.on_upgrade(
+                    |socket: WebSocket| async move { handler.handle_socket(socket).await },
+                )
+            }),
+        )
     }
 }
