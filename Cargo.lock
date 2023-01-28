@@ -263,10 +263,14 @@ dependencies = [
  "actix-ws",
  "anyhow",
  "arpy",
+ "arpy-reqwest",
  "arpy-server",
+ "arpy-test",
  "ciborium",
  "futures",
+ "reqwest",
  "serde_json",
+ "tokio",
 ]
 
 [[package]]

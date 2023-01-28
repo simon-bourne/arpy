@@ -13,3 +13,9 @@ arpy-server = { path = "../server" }
 ciborium = "0.2.0"
 futures = "0.3.25"
 serde_json = "1.0.91"
+
+[dev-dependencies]
+arpy-test = { path = "../test" }
+arpy-reqwest = { path = "../reqwest" }
+tokio = { version = "1.21.2", features = ["full"] }
+reqwest = "0.11.14"
