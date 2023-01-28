@@ -1,10 +1,14 @@
+use std::sync::Arc;
+
 use arpy::FnRemote;
 use arpy_server::{FnRemoteBody, WebSocketRouter};
 use axum::{
     extract::{ws::WebSocket, WebSocketUpgrade},
-    routing::get,
+    routing::{get, post},
     Router,
 };
+use http::ArpyRequest;
+use hyper::HeaderMap;
 use websocket::WebSocketHandler;
 
 pub mod http;
@@ -29,7 +33,11 @@ impl RpcRoute for Router {
         T: FnRemote + Send + Sync + 'static,
     {
         let id = T::ID;
-        self.route(&format!("{prefix}/{id}",), http::handle_rpc(f))
+        let f = Arc::new(f);
+        self.route(
+            &format!("{prefix}/{id}",),
+            post(move |headers: HeaderMap, arpy: ArpyRequest<T>| http::handler(headers, arpy, f)),
+        )
     }
 
     fn ws_rpc_route(self, route: &str, router: WebSocketRouter) -> Self {

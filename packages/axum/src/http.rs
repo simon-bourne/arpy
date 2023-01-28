@@ -8,19 +8,9 @@ use axum::{
     extract::FromRequest,
     http::{header::ACCEPT, HeaderMap, HeaderValue, Request, StatusCode},
     response::{IntoResponse, Response},
-    routing::{post, MethodRouter},
 };
 use hyper::header::CONTENT_TYPE;
 use serde::Serialize;
-
-pub fn handle_rpc<F, T>(f: F) -> MethodRouter
-where
-    F: FnRemoteBody<T> + Send + Sync + 'static,
-    T: FnRemote + Send + Sync + 'static,
-{
-    let f = Arc::new(f);
-    post(move |headers: HeaderMap, arpy: ArpyRequest<T>| handler(headers, arpy, f))
-}
 
 pub struct ArpyRequest<T>(T);
 
