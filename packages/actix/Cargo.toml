@@ -5,8 +5,9 @@ edition = "2021"
 
 [dependencies]
 actix = "0.13.0"
+actix-rt = "2.8.0"
 actix-web = "4.3.0"
-actix-web-actors = "4.2.0"
+actix-ws = "0.2.5"
 anyhow = "1.0.68"
 arpy-server = { path = "../server" }
 futures = "0.3.25"
