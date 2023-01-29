@@ -1,3 +1,9 @@
+//! Building blocks for writing HTTP handlers.
+//!
+//! Try using [`RpcRoute::http_rpc_route`] first, and if that doesn't give
+//! enough control, use the building blocks in this module.
+//!
+//! [`RpcRoute::http_rpc_route`]: crate::RpcRoute::http_rpc_route
 use std::{convert::identity, fmt::Display, str::FromStr, sync::Arc};
 
 use arpy::{FnRemote, MimeType};
@@ -12,6 +18,36 @@ use axum::{
 use hyper::header::CONTENT_TYPE;
 use serde::Serialize;
 
+/// An extractor for RPC requests.
+///
+/// When you need more control over the handler than
+/// [`RpcRoute::http_rpc_route`] gives, you can implement your own RPC handler.
+/// Use this to extract an RPC request in your handler implementation. See
+/// [`axum::extract`] for more details.
+///
+/// # Example
+///
+/// ```
+/// # use axum::{http::HeaderMap, response::IntoResponse, routing::{post, Router}};
+/// # use arpy::{FnRemote, MimeType, RpcId};
+/// # use arpy_axum::http::{ArpyRequest, ArpyResponse};
+/// # use serde::{Deserialize, Serialize};
+/// #
+/// #[derive(RpcId, Serialize, Deserialize, Debug)]
+/// struct MyAdd(u32, u32);
+///
+/// impl FnRemote for MyAdd {
+///     type Output = u32;
+/// }
+///
+/// async fn my_handler(ArpyRequest(args): ArpyRequest<MyAdd>) -> impl IntoResponse {
+///     ArpyResponse::new(MimeType::Cbor, args.0 + args.1)
+/// }
+///
+/// Router::<()>::new().route("/api/my-add", post(my_handler));
+/// ```
+///
+/// [`RpcRoute::http_rpc_route`]: crate::RpcRoute::http_rpc_route
 pub struct ArpyRequest<T>(pub T);
 
 #[async_trait]
@@ -47,12 +83,23 @@ where
     }
 }
 
+/// A responder for RPC requests.
+///
+/// Use this to construct a response for an RPC request handler when you need
+/// more control than [`RpcRoute::http_rpc_route`] gives. See [`ArpyRequest`]
+/// for more details and an example.
+///
+/// [`RpcRoute::http_rpc_route`]: crate::RpcRoute::http_rpc_route
 pub struct ArpyResponse<T> {
     mime_type: MimeType,
     response: T,
 }
 
 impl<T> ArpyResponse<T> {
+    /// Constructor.
+    ///
+    /// `response` will be serialized using an encoder corresponding to
+    /// `mime_type` when it's converted into a [`Response`].
     pub fn new(mime_type: MimeType, response: T) -> Self {
         Self {
             mime_type,
@@ -102,6 +149,38 @@ where
     }
 }
 
+/// An Axum handler for RPC requests.
+///
+/// Use this when you want more control over the route than
+/// [`RpcRoute::http_rpc_route`] gives.
+///
+/// # Example
+///
+/// ```
+/// # use axum::routing::{post, Router};
+/// # use std::sync::Arc;
+/// # use arpy::{FnRemote, RpcId};
+/// # use arpy_axum::http::{handler, ArpyRequest, ArpyResponse};
+/// # use serde::{Deserialize, Serialize};
+/// #
+/// #[derive(RpcId, Serialize, Deserialize, Debug)]
+/// struct MyAdd(u32, u32);
+///
+/// impl FnRemote for MyAdd {
+///     type Output = u32;
+/// }
+///
+/// async fn my_add(args: MyAdd) -> u32 {
+///     args.0 + args.1
+/// }
+///
+/// Router::<()>::new().route(
+///     "/api/my-add",
+///     post(|headers, args| handler(headers, args, Arc::new(my_add))),
+/// );
+/// ```
+///
+/// [`RpcRoute::http_rpc_route`]: crate::RpcRoute::http_rpc_route
 pub async fn handler<F, Args>(
     headers: HeaderMap,
     ArpyRequest(args): ArpyRequest<Args>,
