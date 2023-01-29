@@ -12,6 +12,36 @@ use arpy_server::FnRemoteBody;
 use futures::Future;
 use serde::Serialize;
 
+/// An extractor for RPC requests.
+///
+/// When you need more control over the handler than [`RpcApp::http_rpc_route`]
+/// gives, you can implement your own RPC handler. Use this to extract an RPC
+/// request in your handler implementation. See [`actix_web::Handler`] and
+/// [`actix_web::FromRequest`] for more details.
+///
+/// # Example
+///
+/// ```
+/// # use actix_web::{web, App, Responder};
+/// # use arpy::{FnRemote, RpcId};
+/// # use arpy_actix::http::{ArpyRequest, ArpyResponse};
+/// # use serde::{Deserialize, Serialize};
+/// #
+/// #[derive(RpcId, Serialize, Deserialize, Debug)]
+/// struct MyAdd(u32, u32);
+///
+/// impl FnRemote for MyAdd {
+///     type Output = u32;
+/// }
+///
+/// async fn my_handler(ArpyRequest(args): ArpyRequest<MyAdd>) -> impl Responder {
+///     ArpyResponse(args.0 + args.1)
+/// }
+///
+/// App::new().route("api/my-add", web::post().to(my_handler));
+/// ```
+///
+/// [`RpcApp::http_rpc_route`]: crate::RpcApp::http_rpc_route
 pub struct ArpyRequest<T>(pub T);
 
 impl<Args: FnRemote> FromRequest for ArpyRequest<Args> {
@@ -39,6 +69,14 @@ impl<Args: FnRemote> FromRequest for ArpyRequest<Args> {
     }
 }
 
+/// A responder for RPC requests.
+///
+/// Use this to construct a response for an RPC request handler when you need
+/// more control than [`RpcApp::http_rpc_route`] gives. See
+/// [`actix_web::Responder`] for more details, and [`ArpyRequest`] for an
+/// example.
+///
+/// [`RpcApp::http_rpc_route`]: crate::RpcApp::http_rpc_route
 pub struct ArpyResponse<T>(pub T);
 
 impl<T> Responder for ArpyResponse<T>
@@ -74,6 +112,38 @@ where
         .body(body))
 }
 
+/// An Actix handler for RPC requests.
+///
+/// Use this when you want more control over the route than
+/// [`RpcApp::http_rpc_route`] gives.
+///
+/// # Example
+///
+/// ```
+/// # use std::sync::Arc;
+/// # use actix_web::{web, App, Responder};
+/// # use arpy::{FnRemote, RpcId};
+/// # use arpy_actix::http::{handler, ArpyRequest, ArpyResponse};
+/// # use serde::{Deserialize, Serialize};
+/// #
+/// #[derive(RpcId, Serialize, Deserialize, Debug)]
+/// struct MyAdd(u32, u32);
+///
+/// impl FnRemote for MyAdd {
+///     type Output = u32;
+/// }
+///
+/// async fn my_add(args: MyAdd) -> u32 {
+///     args.0 + args.1
+/// }
+///
+/// App::new().route(
+///     "api/my-add",
+///     web::post().to(|args| handler(Arc::new(my_add), args)),
+/// );
+/// ```
+///
+/// [`RpcApp::http_rpc_route`]: crate::RpcApp::http_rpc_route
 pub async fn handler<F, Args>(f: Arc<F>, ArpyRequest(args): ArpyRequest<Args>) -> impl Responder
 where
     F: FnRemoteBody<Args>,
