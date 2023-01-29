@@ -45,11 +45,11 @@ where
     type Body = BoxBody;
 
     fn respond_to(self, req: &HttpRequest) -> HttpResponse<Self::Body> {
-        try_respond_to(self.0, req).map_or_else(identity, identity)
+        try_respond_to(self.0, req).map_or_else(|e| e.error_response(), identity)
     }
 }
 
-fn try_respond_to<T>(response: T, req: &HttpRequest) -> Result<HttpResponse, HttpResponse>
+fn try_respond_to<T>(response: T, req: &HttpRequest) -> Result<HttpResponse, error::Error>
 where
     T: Serialize,
 {
@@ -59,16 +59,14 @@ where
         MimeType::Cbor => {
             let mut response_body = Vec::new();
 
-            ciborium::ser::into_writer(&response, &mut response_body)
-                .map_err(|_| HttpResponse::BadRequest().finish())?;
+            ciborium::ser::into_writer(&response, &mut response_body).map_err(ErrorBadRequest)?;
 
             HttpResponse::Ok()
                 .content_type(MimeType::Cbor.as_str())
                 .body(response_body)
         }
         MimeType::Json => {
-            let response_body =
-                serde_json::to_vec(&response).map_err(|_| HttpResponse::BadRequest().finish())?;
+            let response_body = serde_json::to_vec(&response).map_err(ErrorBadRequest)?;
 
             HttpResponse::Ok()
                 .content_type(MimeType::Json.as_str())
