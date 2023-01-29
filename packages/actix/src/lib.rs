@@ -15,8 +15,8 @@ mod websocket;
 pub trait RpcApp {
     fn http_rpc_route<F, T>(self, prefix: &str, f: F) -> Self
     where
-        F: FnRemoteBody<T> + Send + Sync + 'static,
-        T: FnRemote + Send + Sync + 'static;
+        F: FnRemoteBody<T> + 'static,
+        T: FnRemote + 'static;
 
     fn ws_rpc_route(self, path: &str, routes: WebSocketRouter) -> Self;
 }
@@ -27,8 +27,8 @@ where
 {
     fn http_rpc_route<F, T>(self, prefix: &str, f: F) -> Self
     where
-        F: FnRemoteBody<T> + Send + Sync + 'static,
-        T: FnRemote + Send + Sync + 'static,
+        F: FnRemoteBody<T> + 'static,
+        T: FnRemote + 'static,
     {
         let id = T::ID;
         let f = Arc::new(f);

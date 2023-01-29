@@ -14,9 +14,9 @@ use serde::Serialize;
 
 pub struct ArpyRequest<T>(pub T);
 
-impl<T: FnRemote + Send + Sync> FromRequest for ArpyRequest<T> {
+impl<T: FnRemote> FromRequest for ArpyRequest<T> {
     type Error = error::Error;
-    type Future = Pin<Box<dyn Future<Output = Result<Self, Self::Error>> + 'static>>;
+    type Future = Pin<Box<dyn Future<Output = Result<Self, Self::Error>>>>;
 
     fn from_request(req: &HttpRequest, payload: &mut actix_web::dev::Payload) -> Self::Future {
         let content_type = mime_type(req.headers().get(CONTENT_TYPE)).unwrap();
@@ -79,8 +79,8 @@ where
 
 pub async fn handler<F, T>(f: Arc<F>, ArpyRequest(thunk): ArpyRequest<T>) -> impl Responder
 where
-    F: FnRemoteBody<T> + Send + Sync + 'static,
-    T: FnRemote + Send + Sync + 'static,
+    F: FnRemoteBody<T>,
+    T: FnRemote,
 {
     ArpyResponse(f.run(thunk).await)
 }
