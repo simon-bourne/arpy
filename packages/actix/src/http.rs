@@ -85,7 +85,6 @@ where
     ArpyResponse(f.run(thunk).await)
 }
 
-// TODO: Bodies for http errors (call `.body` instead of `.finish`)
 fn mime_type(header_value: Option<&HeaderValue>) -> Result<MimeType, error::Error> {
     if let Some(accept) = header_value {
         let accept = accept.to_str().map_err(ErrorNotAcceptable)?;

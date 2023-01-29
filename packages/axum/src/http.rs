@@ -1,4 +1,4 @@
-use std::{str::FromStr, sync::Arc};
+use std::{fmt::Display, str::FromStr, sync::Arc};
 
 use arpy::{FnRemote, MimeType};
 use arpy_server::FnRemoteBody;
@@ -22,21 +22,23 @@ where
     B: Send + 'static,
     S: Send + Sync,
 {
-    type Rejection = StatusCode;
+    type Rejection = Response;
 
     async fn from_request(request: Request<B>, state: &S) -> Result<Self, Self::Rejection> {
         let content_type = mime_type(request.headers().get(CONTENT_TYPE))?;
 
         let body = Bytes::from_request(request, state)
             .await
-            .map_err(|_| StatusCode::PARTIAL_CONTENT)?;
+            .map_err(|_| error(StatusCode::PARTIAL_CONTENT, "Unable to read message"))?;
         let body = body.as_ref();
 
         let thunk: T = match content_type {
             MimeType::Cbor => {
-                ciborium::de::from_reader(body).map_err(|_| StatusCode::BAD_REQUEST)?
+                ciborium::de::from_reader(body).map_err(|e| error(StatusCode::BAD_REQUEST, e))?
             }
-            MimeType::Json => serde_json::from_slice(body).map_err(|_| StatusCode::BAD_REQUEST)?,
+            MimeType::Json => {
+                serde_json::from_slice(body).map_err(|e| error(StatusCode::BAD_REQUEST, e))?
+            }
         };
 
         Ok(Self(thunk))
@@ -99,7 +101,7 @@ pub async fn handler<F, T>(
     headers: HeaderMap,
     ArpyRequest(args): ArpyRequest<T>,
     f: Arc<F>,
-) -> Result<impl IntoResponse, StatusCode>
+) -> Result<impl IntoResponse, Response>
 where
     F: FnRemoteBody<T>,
     T: FnRemote,
@@ -109,11 +111,20 @@ where
     Ok(ArpyResponse::new(response_type, response))
 }
 
-fn mime_type(header_value: Option<&HeaderValue>) -> Result<MimeType, StatusCode> {
+fn mime_type(header_value: Option<&HeaderValue>) -> Result<MimeType, Response> {
     if let Some(accept) = header_value {
-        MimeType::from_str(accept.to_str().map_err(|_| StatusCode::NOT_ACCEPTABLE)?)
-            .map_err(|_| StatusCode::UNSUPPORTED_MEDIA_TYPE)
+        let accept = accept
+            .to_str()
+            .map_err(|e| error(StatusCode::NOT_ACCEPTABLE, e))?;
+        MimeType::from_str(accept).map_err(|_| error(StatusCode::UNSUPPORTED_MEDIA_TYPE, accept))
     } else {
         Ok(MimeType::Cbor)
     }
+}
+
+fn error(code: StatusCode, e: impl Display) -> Response {
+    Response::builder()
+        .status(code)
+        .body(Full::from(e.to_string()))
+        .map_or_else(|_| code.into_response(), |v| v.into_response())
 }
