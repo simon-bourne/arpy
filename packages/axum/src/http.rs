@@ -15,9 +15,9 @@ use serde::Serialize;
 pub struct ArpyRequest<T>(pub T);
 
 #[async_trait]
-impl<T, S, B> FromRequest<S, B> for ArpyRequest<T>
+impl<Args, S, B> FromRequest<S, B> for ArpyRequest<Args>
 where
-    T: FnRemote,
+    Args: FnRemote,
     Bytes: FromRequest<S, B>,
     B: Send + 'static,
     S: Send + Sync,
@@ -32,7 +32,7 @@ where
             .map_err(|_| error(StatusCode::PARTIAL_CONTENT, "Unable to read message"))?;
         let body = body.as_ref();
 
-        let thunk: T = match content_type {
+        let args: Args = match content_type {
             MimeType::Cbor => {
                 ciborium::de::from_reader(body).map_err(|e| error(StatusCode::BAD_REQUEST, e))?
             }
@@ -41,7 +41,7 @@ where
             }
         };
 
-        Ok(Self(thunk))
+        Ok(Self(args))
     }
 }
 
@@ -97,14 +97,14 @@ where
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
-pub async fn handler<F, T>(
+pub async fn handler<F, Args>(
     headers: HeaderMap,
-    ArpyRequest(args): ArpyRequest<T>,
+    ArpyRequest(args): ArpyRequest<Args>,
     f: Arc<F>,
 ) -> Result<impl IntoResponse, Response>
 where
-    F: FnRemoteBody<T>,
-    T: FnRemote,
+    F: FnRemoteBody<Args>,
+    Args: FnRemote,
 {
     let response = f.run(args).await;
     let response_type = mime_type(headers.get(ACCEPT))?;

@@ -14,7 +14,7 @@ use serde::Serialize;
 
 pub struct ArpyRequest<T>(pub T);
 
-impl<T: FnRemote> FromRequest for ArpyRequest<T> {
+impl<Args: FnRemote> FromRequest for ArpyRequest<Args> {
     type Error = error::Error;
     type Future = Pin<Box<dyn Future<Output = Result<Self, Self::Error>>>>;
 
@@ -26,12 +26,12 @@ impl<T: FnRemote> FromRequest for ArpyRequest<T> {
             let body = bytes.await?;
             let body = body.as_ref();
 
-            let thunk: T = match content_type {
+            let args: Args = match content_type {
                 MimeType::Cbor => ciborium::de::from_reader(body).map_err(ErrorBadRequest)?,
                 MimeType::Json => serde_json::from_slice(body).map_err(ErrorBadRequest)?,
             };
 
-            Ok(ArpyRequest(thunk))
+            Ok(ArpyRequest(args))
         })
     }
 }
@@ -77,12 +77,12 @@ where
     Ok(response)
 }
 
-pub async fn handler<F, T>(f: Arc<F>, ArpyRequest(thunk): ArpyRequest<T>) -> impl Responder
+pub async fn handler<F, Args>(f: Arc<F>, ArpyRequest(args): ArpyRequest<Args>) -> impl Responder
 where
-    F: FnRemoteBody<T>,
-    T: FnRemote,
+    F: FnRemoteBody<Args>,
+    Args: FnRemote,
 {
-    ArpyResponse(f.run(thunk).await)
+    ArpyResponse(f.run(args).await)
 }
 
 fn mime_type(header_value: Option<&HeaderValue>) -> Result<MimeType, error::Error> {

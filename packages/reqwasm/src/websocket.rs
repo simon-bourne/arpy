@@ -24,19 +24,19 @@ impl Connection {
 impl RpcClient for Connection {
     type Error = Error;
 
-    async fn call<F>(&mut self, function: F) -> Result<F::Output, Self::Error>
+    async fn call<Args>(&mut self, args: Args) -> Result<Args::Output, Self::Error>
     where
-        F: FnRemote,
+        Args: FnRemote,
     {
         let mut body = Vec::new();
-        let id = F::ID.as_bytes();
+        let id = Args::ID.as_bytes();
         body.extend(
             u32::try_from(id.len())
                 .map_err(|_| Error::Send("ID too large".to_string()))?
                 .to_le_bytes(),
         );
         body.extend(id);
-        ciborium::ser::into_writer(&function, &mut body).unwrap();
+        ciborium::ser::into_writer(&args, &mut body).unwrap();
 
         self.write
             .send(Message::Bytes(body))
@@ -49,7 +49,7 @@ impl RpcClient for Connection {
             Err(Error::receive("End of stream"))?
         };
 
-        let result: F::Output = match result {
+        let result: Args::Output = match result {
             Message::Text(_) => Err(Error::deserialize_result("Unexpected text result"))?,
             Message::Bytes(bytes) => {
                 ciborium::de::from_reader(bytes.as_slice()).map_err(Error::deserialize_result)?

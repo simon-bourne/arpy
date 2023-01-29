@@ -17,18 +17,18 @@ impl Connection {
 impl RpcClient for Connection {
     type Error = Error;
 
-    async fn call<F>(&mut self, function: F) -> Result<F::Output, Self::Error>
+    async fn call<Args>(&mut self, args: Args) -> Result<Args::Output, Self::Error>
     where
-        F: FnRemote,
+        Args: FnRemote,
     {
         let content_type = MimeType::Cbor;
         let mut body = Vec::new();
-        ciborium::ser::into_writer(&function, &mut body).unwrap();
+        ciborium::ser::into_writer(&args, &mut body).unwrap();
 
         let js_body = Uint8Array::new_with_length(body.len() as u32);
         js_body.copy_from(&body);
 
-        let result = http::Request::post(&format!("{}/{}", self.0, F::ID))
+        let result = http::Request::post(&format!("{}/{}", self.0, Args::ID))
             .header(CONTENT_TYPE, content_type.as_str())
             .header(ACCEPT, content_type.as_str())
             .body(js_body)
@@ -50,7 +50,7 @@ impl RpcClient for Connection {
         }
 
         let result_bytes = result.binary().await.map_err(Error::receive)?;
-        let result: F::Output = ciborium::de::from_reader(result_bytes.as_slice())
+        let result: Args::Output = ciborium::de::from_reader(result_bytes.as_slice())
             .map_err(Error::deserialize_result)?;
 
         Ok(result)

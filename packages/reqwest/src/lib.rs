@@ -38,18 +38,18 @@ pub enum Error {
 impl<'a> RpcClient for Connection<'a> {
     type Error = Error;
 
-    async fn call<F>(&mut self, function: F) -> Result<F::Output, Self::Error>
+    async fn call<Args>(&mut self, args: Args) -> Result<Args::Output, Self::Error>
     where
-        F: FnRemote,
+        Args: FnRemote,
     {
         let content_type = MimeType::Cbor;
         let mut body = Vec::new();
 
-        ciborium::ser::into_writer(&function, &mut body).unwrap();
+        ciborium::ser::into_writer(&args, &mut body).unwrap();
 
         let result = self
             .client
-            .post(format!("{}/{}", self.url, F::ID))
+            .post(format!("{}/{}", self.url, Args::ID))
             .header(CONTENT_TYPE, content_type.as_str())
             .header(ACCEPT, content_type.as_str())
             .body(body)
@@ -70,7 +70,7 @@ impl<'a> RpcClient for Connection<'a> {
         }
 
         let result_bytes = result.bytes().await.map_err(Error::Receive)?;
-        let result: F::Output = ciborium::de::from_reader(result_bytes.as_ref())
+        let result: Args::Output = ciborium::de::from_reader(result_bytes.as_ref())
             .map_err(|e| Error::DeserializeResult(e.to_string()))?;
 
         Ok(result)

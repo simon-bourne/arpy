@@ -15,12 +15,12 @@ impl WebSocketRouter {
         Self::default()
     }
 
-    pub fn handle<F, T>(mut self, f: F) -> Self
+    pub fn handle<F, Args>(mut self, f: F) -> Self
     where
-        F: FnRemoteBody<T> + Send + Sync + 'static,
-        T: FnRemote + Send + Sync + 'static,
+        F: FnRemoteBody<Args> + Send + Sync + 'static,
+        Args: FnRemote + Send + Sync + 'static,
     {
-        let id = T::ID.as_bytes().to_vec();
+        let id = Args::ID.as_bytes().to_vec();
         let f = Arc::new(f);
         self.0.insert(
             id,
@@ -30,12 +30,12 @@ impl WebSocketRouter {
         self
     }
 
-    async fn run<F, T>(f: Arc<F>, input: &[u8]) -> Result<Vec<u8>>
+    async fn run<F, Args>(f: Arc<F>, input: &[u8]) -> Result<Vec<u8>>
     where
-        F: FnRemoteBody<T> + Send + Sync + 'static,
-        T: FnRemote + Send + Sync + 'static,
+        F: FnRemoteBody<Args> + Send + Sync + 'static,
+        Args: FnRemote + Send + Sync + 'static,
     {
-        let args: T = ciborium::de::from_reader(input).map_err(Error::Deserialization)?;
+        let args: Args = ciborium::de::from_reader(input).map_err(Error::Deserialization)?;
         let result = f.run(args).await;
         let mut body = Vec::new();
         ciborium::ser::into_writer(&result, &mut body).unwrap();
@@ -53,12 +53,12 @@ impl WebSocketHandler {
     pub async fn handle_msg(&self, msg: &[u8]) -> Result<Vec<u8>> {
         let (id, msg) = split_message(msg, size_of::<u32>(), "ID len")?;
         let id_len = u32::from_le_bytes(id.try_into().unwrap());
-        let (id, params) = split_message(msg, id_len as usize, "ID")?;
+        let (id, args) = split_message(msg, id_len as usize, "ID")?;
 
         let Some(function) = self.0.get(id)
         else { return Err(Error::FunctionNotFound) };
 
-        function(params).await
+        function(args).await
     }
 }
 
