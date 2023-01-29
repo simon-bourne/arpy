@@ -1,3 +1,9 @@
+//! Building blocks for writing HTTP handlers.
+//!
+//! Try using [`RpcApp::http_rpc_route`] first, and if that doesn't give
+//! enough control, use the building blocks in this module.
+//!
+//! [`RpcApp::http_rpc_route`]: crate::RpcApp::http_rpc_route
 use std::{convert::identity, pin::Pin, str::FromStr, sync::Arc};
 
 use actix_web::{
