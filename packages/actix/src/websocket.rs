@@ -1,10 +1,7 @@
 use std::sync::Arc;
 
-use actix_web::{
-    web::{self, Bytes},
-    Error, HttpRequest, HttpResponse,
-};
-use actix_ws::{CloseReason, Message, MessageStream, Session};
+use actix_web::{web, Error, HttpRequest, HttpResponse};
+use actix_ws::{Message, MessageStream, Session};
 use anyhow::bail;
 use arpy_server::WebSocketRouter;
 use futures::StreamExt;
@@ -22,48 +19,29 @@ impl WebSocketHandler {
         mut session: Session,
         mut msg_stream: MessageStream,
     ) -> anyhow::Result<()> {
-        loop {
-            let id = match Self::next_msg(&mut session, &mut msg_stream).await? {
-                Msg::Close(reason) => {
-                    session.close(reason).await?;
-                    return Ok(());
-                }
-                Msg::Msg(id) => id,
-            };
-            let body = match Self::next_msg(&mut session, &mut msg_stream).await? {
-                Msg::Close(_) => bail!("Expect RPC body, got close"),
-                Msg::Msg(body) => body,
-            };
-
-            let reply = self.0.handle_msg(id.as_ref(), body.as_ref()).await?;
-
-            session.binary(reply).await?;
-        }
-    }
-
-    async fn next_msg(
-        session: &mut Session,
-        msg_stream: &mut MessageStream,
-    ) -> anyhow::Result<Msg> {
         while let Some(msg) = msg_stream.next().await {
             match msg? {
                 Message::Ping(bytes) => session.pong(&bytes).await?,
                 Message::Text(_) => bail!("`Text` messages are unsupported"),
-                Message::Binary(msg) => return Ok(Msg::Msg(msg)),
+                Message::Binary(body) => {
+                    let reply = self.0.handle_msg(body.as_ref()).await?;
+
+                    session.binary(reply).await?;
+                }
                 Message::Continuation(_) => bail!("`Continuation` messages are unsupported"),
                 Message::Pong(_) => (),
-                Message::Close(reason) => return Ok(Msg::Close(reason)),
+                Message::Close(reason) => {
+                    session.close(reason).await?;
+                    return Ok(());
+                }
                 Message::Nop => (),
             }
         }
 
-        Ok(Msg::Close(None))
-    }
-}
+        session.close(None).await?;
 
-enum Msg {
-    Close(Option<CloseReason>),
-    Msg(Bytes),
+        Ok(())
+    }
 }
 
 pub async fn handler(

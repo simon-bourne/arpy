@@ -23,7 +23,6 @@ impl RpcClient for Connection {
     {
         let content_type = MimeType::Cbor;
         let mut body = Vec::new();
-
         ciborium::ser::into_writer(&function, &mut body).unwrap();
 
         let js_body = Uint8Array::new_with_length(body.len() as u32);

@@ -28,12 +28,14 @@ impl RpcClient for Connection {
     where
         F: FnRemote,
     {
-        self.write
-            .send(Message::Bytes(F::ID.as_bytes().to_vec()))
-            .await
-            .map_err(|e| Error::Send(e.to_string()))?;
-
         let mut body = Vec::new();
+        let id = F::ID.as_bytes();
+        body.extend(
+            u32::try_from(id.len())
+                .map_err(|_| Error::Send("ID too large".to_string()))?
+                .to_le_bytes(),
+        );
+        body.extend(id);
         ciborium::ser::into_writer(&function, &mut body).unwrap();
 
         self.write
