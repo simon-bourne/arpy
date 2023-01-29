@@ -210,5 +210,5 @@ fn error(code: StatusCode, e: impl Display) -> Response {
     Response::builder()
         .status(code)
         .body(Full::from(e.to_string()))
-        .map_or_else(|_| code.into_response(), |v| v.into_response())
+        .map_or_else(|_| code.into_response(), Response::into_response)
 }

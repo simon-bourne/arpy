@@ -25,7 +25,7 @@ impl RpcClient for Connection {
         let mut body = Vec::new();
         ciborium::ser::into_writer(&args, &mut body).unwrap();
 
-        let js_body = Uint8Array::new_with_length(body.len() as u32);
+        let js_body = Uint8Array::new_with_length(body.len().try_into().unwrap());
         js_body.copy_from(&body);
 
         let result = http::Request::post(&format!("{}/{}", self.0, Args::ID))
