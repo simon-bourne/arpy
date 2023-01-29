@@ -1,18 +1,47 @@
-use std::{convert::identity, str::FromStr, sync::Arc};
+use std::{convert::identity, pin::Pin, str::FromStr, sync::Arc};
 
 use actix_web::{
     body::BoxBody,
+    error::{self, ErrorBadRequest, ErrorNotAcceptable, ErrorUnsupportedMediaType},
     http::header::{HeaderValue, ACCEPT, CONTENT_TYPE},
-    web::{self},
-    HttpRequest, HttpResponse, Responder,
+    web::Bytes,
+    FromRequest, HttpRequest, HttpResponse, Responder,
 };
 use arpy::{FnRemote, MimeType};
 use arpy_server::FnRemoteBody;
+use futures::Future;
 use serde::Serialize;
 
-pub struct ArpyResponse<T>(T);
+pub struct ArpyRequest<T>(pub T);
 
-impl<T: Serialize> Responder for ArpyResponse<T> {
+impl<T: FnRemote + Send + Sync> FromRequest for ArpyRequest<T> {
+    type Error = error::Error;
+    type Future = Pin<Box<dyn Future<Output = Result<Self, Self::Error>> + 'static>>;
+
+    fn from_request(req: &HttpRequest, payload: &mut actix_web::dev::Payload) -> Self::Future {
+        let content_type = mime_type(req.headers().get(CONTENT_TYPE)).unwrap();
+        let bytes = Bytes::from_request(req, payload);
+
+        Box::pin(async move {
+            let body = bytes.await?;
+            let body = body.as_ref();
+
+            let thunk: T = match content_type {
+                MimeType::Cbor => ciborium::de::from_reader(body).map_err(ErrorBadRequest)?,
+                MimeType::Json => serde_json::from_slice(body).map_err(ErrorBadRequest)?,
+            };
+
+            Ok(ArpyRequest(thunk))
+        })
+    }
+}
+
+pub struct ArpyResponse<T>(pub T);
+
+impl<T> Responder for ArpyResponse<T>
+where
+    T: Serialize,
+{
     type Body = BoxBody;
 
     fn respond_to(self, req: &HttpRequest) -> HttpResponse<Self::Body> {
@@ -50,50 +79,20 @@ where
     Ok(response)
 }
 
-pub async fn handler<F, T>(f: Arc<F>, req: HttpRequest, body: web::Bytes) -> impl Responder
+pub async fn handler<F, T>(f: Arc<F>, ArpyRequest(thunk): ArpyRequest<T>) -> impl Responder
 where
     F: FnRemoteBody<T> + Send + Sync + 'static,
     T: FnRemote + Send + Sync + 'static,
 {
-    try_handler(f.clone(), &req, body)
-        .await
-        .map_or_else(identity, |res| res.respond_to(&req))
-}
-
-async fn try_handler<F, T>(
-    f: Arc<F>,
-    req: &HttpRequest,
-    body: web::Bytes,
-) -> Result<ArpyResponse<T::Output>, HttpResponse>
-where
-    F: FnRemoteBody<T> + Send + Sync + 'static,
-    T: FnRemote + Send + Sync + 'static,
-{
-    let body = body.as_ref();
-    let headers = req.headers();
-    let content_type = mime_type(headers.get(CONTENT_TYPE))?;
-
-    let thunk: T = match content_type {
-        MimeType::Cbor => {
-            ciborium::de::from_reader(body).map_err(|_| HttpResponse::BadRequest().finish())?
-        }
-        MimeType::Json => {
-            serde_json::from_slice(body).map_err(|_| HttpResponse::BadRequest().finish())?
-        }
-    };
-
-    Ok(ArpyResponse(f.run(thunk).await))
+    ArpyResponse(f.run(thunk).await)
 }
 
 // TODO: Bodies for http errors (call `.body` instead of `.finish`)
-fn mime_type(header_value: Option<&HeaderValue>) -> Result<MimeType, HttpResponse> {
+fn mime_type(header_value: Option<&HeaderValue>) -> Result<MimeType, error::Error> {
     if let Some(accept) = header_value {
-        MimeType::from_str(
-            accept
-                .to_str()
-                .map_err(|_| HttpResponse::NotAcceptable().finish())?,
-        )
-        .map_err(|_| HttpResponse::UnsupportedMediaType().finish())
+        let accept = accept.to_str().map_err(ErrorNotAcceptable)?;
+        MimeType::from_str(accept)
+            .map_err(|_| ErrorUnsupportedMediaType(format!("Unsupport mime type '{accept}'")))
     } else {
         Ok(MimeType::Cbor)
     }
