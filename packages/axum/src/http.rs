@@ -1,4 +1,4 @@
-use std::{fmt::Display, str::FromStr, sync::Arc};
+use std::{convert::identity, fmt::Display, str::FromStr, sync::Arc};
 
 use arpy::{FnRemote, MimeType};
 use arpy_server::FnRemoteBody;
@@ -59,42 +59,38 @@ impl<T> ArpyResponse<T> {
     }
 }
 
+impl<T> ArpyResponse<T>
+where
+    T: Serialize,
+{
+    fn try_into_response(self) -> Result<Response, Response> {
+        let body = match self.mime_type {
+            MimeType::Cbor => {
+                let mut body = Vec::new();
+
+                ciborium::ser::into_writer(&self.response, &mut body)
+                    .map_err(|e| error(StatusCode::BAD_REQUEST, e))?;
+                body
+            }
+            MimeType::Json => {
+                serde_json::to_vec(&self.response).map_err(|e| error(StatusCode::BAD_REQUEST, e))?
+            }
+        };
+
+        Response::builder()
+            .header(CONTENT_TYPE, self.mime_type.as_str())
+            .body(boxed(Full::from(body)))
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())
+    }
+}
+
 impl<T> IntoResponse for ArpyResponse<T>
 where
     T: Serialize,
 {
     fn into_response(self) -> Response {
-        match self.mime_type {
-            MimeType::Cbor => cbor_response(self.response).into_response(),
-            MimeType::Json => json_response(self.response).into_response(),
-        }
+        self.try_into_response().map_or_else(identity, identity)
     }
-}
-
-fn cbor_response<T>(response: T) -> Result<impl IntoResponse, StatusCode>
-where
-    T: Serialize,
-{
-    let mut body = Vec::new();
-
-    ciborium::ser::into_writer(&response, &mut body).map_err(|_| StatusCode::BAD_REQUEST)?;
-
-    Response::builder()
-        .header(CONTENT_TYPE, MimeType::Cbor.as_str())
-        .body(boxed(Full::from(body)))
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
-}
-
-fn json_response<T>(response: T) -> Result<impl IntoResponse, StatusCode>
-where
-    T: Serialize,
-{
-    let body = serde_json::to_vec(&response).map_err(|_| StatusCode::BAD_REQUEST)?;
-
-    Response::builder()
-        .header(CONTENT_TYPE, "application/json")
-        .body(boxed(Full::from(body)))
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
 pub async fn handler<F, Args>(
