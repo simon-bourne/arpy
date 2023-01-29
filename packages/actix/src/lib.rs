@@ -35,10 +35,7 @@ where
 
         self.route(
             &format!("{prefix}/{id}"),
-            web::post().to(move |request| {
-                let f = f.clone();
-                http::handler(f, request)
-            }),
+            web::post().to(move |request| http::handler(f.clone(), request)),
         )
     }
 
