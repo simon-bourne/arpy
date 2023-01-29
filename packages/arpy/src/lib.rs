@@ -78,6 +78,7 @@ pub mod id {
 pub enum MimeType {
     Cbor,
     Json,
+    XwwwFormUrlencoded,
 }
 
 impl MimeType {
@@ -85,6 +86,7 @@ impl MimeType {
         match self {
             Self::Cbor => "application/cbor",
             Self::Json => "application/json",
+            Self::XwwwFormUrlencoded => "application/x-www-form-urlencoded",
         }
     }
 }
@@ -97,6 +99,8 @@ impl FromStr for MimeType {
             Ok(Self::Cbor)
         } else if s.starts_with(Self::Json.as_str()) {
             Ok(Self::Json)
+        } else if s.starts_with(Self::XwwwFormUrlencoded.as_str()) {
+            Ok(Self::XwwwFormUrlencoded)
         } else {
             Err(())
         }

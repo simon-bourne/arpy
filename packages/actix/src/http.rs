@@ -29,6 +29,9 @@ impl<Args: FnRemote> FromRequest for ArpyRequest<Args> {
             let args: Args = match content_type {
                 MimeType::Cbor => ciborium::de::from_reader(body).map_err(ErrorBadRequest)?,
                 MimeType::Json => serde_json::from_slice(body).map_err(ErrorBadRequest)?,
+                MimeType::XwwwFormUrlencoded => {
+                    serde_urlencoded::from_bytes(body).map_err(ErrorBadRequest)?
+                }
             };
 
             Ok(ArpyRequest(args))
@@ -55,26 +58,20 @@ where
 {
     let response_type = mime_type(req.headers().get(ACCEPT))?;
 
-    let response = match response_type {
+    let body = match response_type {
         MimeType::Cbor => {
             let mut response_body = Vec::new();
 
             ciborium::ser::into_writer(&response, &mut response_body).map_err(ErrorBadRequest)?;
-
-            HttpResponse::Ok()
-                .content_type(MimeType::Cbor.as_str())
-                .body(response_body)
+            BoxBody::new(response_body)
         }
-        MimeType::Json => {
-            let response_body = serde_json::to_vec(&response).map_err(ErrorBadRequest)?;
-
-            HttpResponse::Ok()
-                .content_type(MimeType::Json.as_str())
-                .body(response_body)
-        }
+        MimeType::Json => BoxBody::new(serde_json::to_vec(&response).map_err(ErrorBadRequest)?),
+        MimeType::XwwwFormUrlencoded => BoxBody::new(serde_urlencoded::to_string(&response)?),
     };
 
-    Ok(response)
+    Ok(HttpResponse::Ok()
+        .content_type(response_type.as_str())
+        .body(body))
 }
 
 pub async fn handler<F, Args>(f: Arc<F>, ArpyRequest(args): ArpyRequest<Args>) -> impl Responder

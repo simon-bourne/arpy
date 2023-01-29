@@ -14,9 +14,6 @@ use websocket::WebSocketHandler;
 pub mod http;
 mod websocket;
 
-// TODO: Forms:
-// POST: x-www-form-urlencoded with serde?
-// GET
 pub trait RpcRoute {
     fn http_rpc_route<F, T>(self, prefix: &str, f: F) -> Self
     where

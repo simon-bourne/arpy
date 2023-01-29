@@ -32,14 +32,16 @@ where
             .map_err(|_| error(StatusCode::PARTIAL_CONTENT, "Unable to read message"))?;
         let body = body.as_ref();
 
-        let args: Args = match content_type {
-            MimeType::Cbor => {
-                ciborium::de::from_reader(body).map_err(|e| error(StatusCode::BAD_REQUEST, e))?
-            }
-            MimeType::Json => {
-                serde_json::from_slice(body).map_err(|e| error(StatusCode::BAD_REQUEST, e))?
-            }
-        };
+        let args: Args =
+            match content_type {
+                MimeType::Cbor => ciborium::de::from_reader(body)
+                    .map_err(|e| error(StatusCode::BAD_REQUEST, e))?,
+                MimeType::Json => {
+                    serde_json::from_slice(body).map_err(|e| error(StatusCode::BAD_REQUEST, e))?
+                }
+                MimeType::XwwwFormUrlencoded => serde_urlencoded::from_bytes(body)
+                    .map_err(|e| error(StatusCode::BAD_REQUEST, e))?,
+            };
 
         Ok(Self(args))
     }
@@ -70,16 +72,23 @@ where
 
                 ciborium::ser::into_writer(&self.response, &mut body)
                     .map_err(|e| error(StatusCode::BAD_REQUEST, e))?;
-                body
+                boxed(Full::from(body))
             }
             MimeType::Json => {
-                serde_json::to_vec(&self.response).map_err(|e| error(StatusCode::BAD_REQUEST, e))?
+                let body = serde_json::to_vec(&self.response)
+                    .map_err(|e| error(StatusCode::BAD_REQUEST, e))?;
+                boxed(Full::from(body))
+            }
+            MimeType::XwwwFormUrlencoded => {
+                let body = serde_urlencoded::to_string(&self.response)
+                    .map_err(|e| error(StatusCode::BAD_REQUEST, e))?;
+                boxed(Full::from(body))
             }
         };
 
         Response::builder()
             .header(CONTENT_TYPE, self.mime_type.as_str())
-            .body(boxed(Full::from(body)))
+            .body(body)
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())
     }
 }
