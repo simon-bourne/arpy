@@ -269,6 +269,7 @@ dependencies = [
  "ciborium",
  "futures",
  "reqwest",
+ "serde",
  "serde_json",
  "tokio",
 ]

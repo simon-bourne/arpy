@@ -1,4 +1,4 @@
-use std::{convert::identity, sync::Arc};
+use std::sync::Arc;
 
 use actix_web::{
     dev::{ServiceFactory, ServiceRequest},
@@ -9,7 +9,7 @@ use arpy::FnRemote;
 use arpy_server::{FnRemoteBody, WebSocketRouter};
 use websocket::WebSocketHandler;
 
-mod http;
+pub mod http;
 mod websocket;
 
 pub trait RpcApp {
@@ -37,11 +37,7 @@ where
             &format!("{prefix}/{id}"),
             web::post().to(move |req, body| {
                 let f = f.clone();
-                async move {
-                    http::handler(f.clone(), req, body)
-                        .await
-                        .map_or_else(identity, identity)
-                }
+                http::handler(f, req, body)
             }),
         )
     }

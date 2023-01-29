@@ -1,18 +1,70 @@
-use std::{str::FromStr, sync::Arc};
+use std::{convert::identity, str::FromStr, sync::Arc};
 
 use actix_web::{
+    body::BoxBody,
     http::header::{HeaderValue, ACCEPT, CONTENT_TYPE},
     web::{self},
-    HttpRequest, HttpResponse,
+    HttpRequest, HttpResponse, Responder,
 };
 use arpy::{FnRemote, MimeType};
 use arpy_server::FnRemoteBody;
+use serde::Serialize;
 
-pub async fn handler<F, T>(
+pub struct ArpyResponse<T>(T);
+
+impl<T: Serialize> Responder for ArpyResponse<T> {
+    type Body = BoxBody;
+
+    fn respond_to(self, req: &HttpRequest) -> HttpResponse<Self::Body> {
+        try_respond_to(self.0, req).map_or_else(identity, identity)
+    }
+}
+
+fn try_respond_to<T>(response: T, req: &HttpRequest) -> Result<HttpResponse, HttpResponse>
+where
+    T: Serialize,
+{
+    let response_type = mime_type(req.headers().get(ACCEPT))?;
+
+    let response = match response_type {
+        MimeType::Cbor => {
+            let mut response_body = Vec::new();
+
+            ciborium::ser::into_writer(&response, &mut response_body)
+                .map_err(|_| HttpResponse::BadRequest().finish())?;
+
+            HttpResponse::Ok()
+                .content_type(MimeType::Cbor.as_str())
+                .body(response_body)
+        }
+        MimeType::Json => {
+            let response_body =
+                serde_json::to_vec(&response).map_err(|_| HttpResponse::BadRequest().finish())?;
+
+            HttpResponse::Ok()
+                .content_type(MimeType::Json.as_str())
+                .body(response_body)
+        }
+    };
+
+    Ok(response)
+}
+
+pub async fn handler<F, T>(f: Arc<F>, req: HttpRequest, body: web::Bytes) -> impl Responder
+where
+    F: FnRemoteBody<T> + Send + Sync + 'static,
+    T: FnRemote + Send + Sync + 'static,
+{
+    try_handler(f.clone(), &req, body)
+        .await
+        .map_or_else(identity, |res| res.respond_to(&req))
+}
+
+async fn try_handler<F, T>(
     f: Arc<F>,
-    req: HttpRequest,
+    req: &HttpRequest,
     body: web::Bytes,
-) -> Result<HttpResponse, HttpResponse>
+) -> Result<ArpyResponse<T::Output>, HttpResponse>
 where
     F: FnRemoteBody<T> + Send + Sync + 'static,
     T: FnRemote + Send + Sync + 'static,
@@ -30,31 +82,7 @@ where
         }
     };
 
-    let response = f.run(thunk).await;
-    let response_type = mime_type(headers.get(ACCEPT))?;
-
-    let response = match response_type {
-        MimeType::Cbor => {
-            let mut respose_body = Vec::new();
-
-            ciborium::ser::into_writer(&response, &mut respose_body)
-                .map_err(|_| HttpResponse::BadRequest().finish())?;
-
-            HttpResponse::Ok()
-                .content_type(MimeType::Cbor.as_str())
-                .body(respose_body)
-        }
-        MimeType::Json => {
-            let response_body =
-                serde_json::to_vec(&response).map_err(|_| HttpResponse::BadRequest().finish())?;
-
-            HttpResponse::Ok()
-                .content_type(MimeType::Json.as_str())
-                .body(response_body)
-        }
-    };
-
-    Ok(response)
+    Ok(ArpyResponse(f.run(thunk).await))
 }
 
 // TODO: Bodies for http errors (call `.body` instead of `.finish`)
