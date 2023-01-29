@@ -44,18 +44,18 @@ mod websocket;
 
 /// Extension trait to add RPC routes. See [module level documentation][crate]
 /// for an example.
-///
-/// Routes are constructed with `"{prefix}/{rpc_id}"` where `rpc_id = T::ID`
-/// from [`RpcId`][arpy::id::RpcId].
 pub trait RpcApp {
     /// Add an HTTP route to handle a single RPC endpoint.
+    ///
+    /// Routes are constructed with `"{prefix}/{rpc_id}"` where `rpc_id = T::ID`
+    /// from [`RpcId`][arpy::id::RpcId].
     fn http_rpc_route<F, T>(self, prefix: &str, f: F) -> Self
     where
         F: FnRemoteBody<T> + 'static,
         T: FnRemote + 'static;
 
-    /// Add an HTTP route to handle all the RPC endpoints in `routes`.
-    fn ws_rpc_route(self, path: &str, routes: WebSocketRouter) -> Self;
+    /// Add all the RPC endpoints in `router` to a websocket endpoint at `path`.
+    fn ws_rpc_route(self, path: &str, router: WebSocketRouter) -> Self;
 }
 
 impl<S> RpcApp for App<S>
@@ -76,8 +76,8 @@ where
         )
     }
 
-    fn ws_rpc_route(self, path: &str, routes: WebSocketRouter) -> Self {
-        let handler = WebSocketHandler::new(routes);
+    fn ws_rpc_route(self, path: &str, router: WebSocketRouter) -> Self {
+        let handler = WebSocketHandler::new(router);
         self.route(
             path,
             web::get().to(move |req: HttpRequest, body: web::Payload| {
