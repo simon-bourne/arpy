@@ -12,7 +12,7 @@ use axum::{
 use hyper::header::CONTENT_TYPE;
 use serde::Serialize;
 
-pub struct ArpyRequest<T>(T);
+pub struct ArpyRequest<T>(pub T);
 
 #[async_trait]
 impl<T, S, B> FromRequest<S, B> for ArpyRequest<T>
