@@ -68,10 +68,18 @@ pub fn function_body(input: TokenStream) -> TokenStream {
             if supporting_fns.contains(name.as_str()) {
                 Some(format!("{function}\n"))
             } else if name.as_str() == function_body {
-                function
-                    .body()
-                    // TODO: Don't print braces
-                    .map(|body| format!("{body}\n"))
+                function.body().map(|body| {
+                    body.to_string()
+                        .as_str()
+                        .trim()
+                        .trim_start_matches('{')
+                        .trim_end_matches('}')
+                        .trim()
+                        .lines()
+                        .map(str::trim)
+                        .join("\n")
+                        + "\n"
+                })
             } else {
                 None
             }
