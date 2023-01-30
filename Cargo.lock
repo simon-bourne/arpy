@@ -297,6 +297,7 @@ dependencies = [
  "ciborium",
  "futures",
  "hyper",
+ "include-doc",
  "serde",
  "serde_json",
  "serde_urlencoded",

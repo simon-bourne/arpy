@@ -28,23 +28,7 @@ use serde::Serialize;
 /// # Example
 ///
 /// ```
-/// # use axum::{http::HeaderMap, response::IntoResponse, routing::{post, Router}};
-/// # use arpy::{FnRemote, MimeType, RpcId};
-/// # use arpy_axum::http::{ArpyRequest, ArpyResponse};
-/// # use serde::{Deserialize, Serialize};
-/// #
-/// #[derive(RpcId, Serialize, Deserialize, Debug)]
-/// struct MyAdd(u32, u32);
-///
-/// impl FnRemote for MyAdd {
-///     type Output = u32;
-/// }
-///
-/// async fn my_handler(ArpyRequest(args): ArpyRequest<MyAdd>) -> impl IntoResponse {
-///     ArpyResponse::new(MimeType::Cbor, args.0 + args.1)
-/// }
-///
-/// Router::<()>::new().route("/api/my-add", post(my_handler));
+#[doc = include_doc::function_body!("tests/doc.rs", extractor_example, [my_handler])]
 /// ```
 ///
 /// [`RpcRoute::http_rpc_route`]: crate::RpcRoute::http_rpc_route
@@ -157,27 +141,7 @@ where
 /// # Example
 ///
 /// ```
-/// # use axum::routing::{post, Router};
-/// # use std::sync::Arc;
-/// # use arpy::{FnRemote, RpcId};
-/// # use arpy_axum::http::{handler, ArpyRequest, ArpyResponse};
-/// # use serde::{Deserialize, Serialize};
-/// #
-/// #[derive(RpcId, Serialize, Deserialize, Debug)]
-/// struct MyAdd(u32, u32);
-///
-/// impl FnRemote for MyAdd {
-///     type Output = u32;
-/// }
-///
-/// async fn my_add(args: MyAdd) -> u32 {
-///     args.0 + args.1
-/// }
-///
-/// Router::<()>::new().route(
-///     "/api/my-add",
-///     post(|headers, args| handler(headers, args, Arc::new(my_add))),
-/// );
+#[doc = include_doc::function_body!("tests/doc.rs", handler_example, [my_add])]
 /// ```
 ///
 /// [`RpcRoute::http_rpc_route`]: crate::RpcRoute::http_rpc_route
