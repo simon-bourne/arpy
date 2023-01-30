@@ -69,16 +69,13 @@ pub fn function_body(input: TokenStream) -> TokenStream {
                 Some(format!("{function}\n"))
             } else if name.as_str() == function_body {
                 function.body().map(|body| {
-                    body.to_string()
-                        .as_str()
-                        .trim()
-                        .trim_start_matches('{')
-                        .trim_end_matches('}')
-                        .trim()
-                        .lines()
-                        .map(str::trim)
-                        .join("\n")
-                        + "\n"
+                    remove_indent(
+                        body.to_string()
+                            .as_str()
+                            .trim()
+                            .trim_start_matches('{')
+                            .trim_end_matches('}'),
+                    ) + "\n"
                 })
             } else {
                 None
@@ -90,6 +87,30 @@ pub fn function_body(input: TokenStream) -> TokenStream {
     let doc = parts.collect::<Vec<String>>().join("\n");
 
     quote!(#doc).into()
+}
+
+fn remove_indent(text: &str) -> String {
+    let min_indent = text.lines().filter_map(indent).min().unwrap_or(0);
+
+    text.lines()
+        .map(|line| {
+            if line.len() > min_indent {
+                &line[min_indent..]
+            } else {
+                ""
+            }
+        })
+        .join("\n")
+        .trim_matches('\n')
+        .to_string()
+}
+
+fn indent(text: &str) -> Option<usize> {
+    if text.trim().is_empty() {
+        None
+    } else {
+        text.find(|c: char| c != ' ' && c != '\t')
+    }
 }
 
 #[proc_macro]
