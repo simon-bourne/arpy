@@ -39,6 +39,7 @@ use arpy::FnRemote;
 use arpy_server::{FnRemoteBody, WebSocketRouter};
 use websocket::WebSocketHandler;
 
+mod doc;
 pub mod http;
 mod websocket;
 

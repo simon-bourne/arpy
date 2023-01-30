@@ -29,24 +29,18 @@ use serde::Serialize;
 ///
 /// ```
 /// # use actix_web::{web, App, Responder};
-/// # use arpy::{FnRemote, RpcId};
 /// # use arpy_actix::http::{ArpyRequest, ArpyResponse};
-/// # use serde::{Deserialize, Serialize};
 /// #
-/// #[derive(RpcId, Serialize, Deserialize, Debug)]
-/// struct MyAdd(u32, u32);
+#[doc = include_doc::file!("src/doc.rs")]
 ///
-/// impl FnRemote for MyAdd {
-///     type Output = u32;
-/// }
-///
-/// async fn my_handler(ArpyRequest(args): ArpyRequest<MyAdd>) -> impl Responder {
+/// async fn my_handler(ArpyRequest(args): ArpyRequest<MyAdd>) -> impl Responder
+/// {
 ///     ArpyResponse(args.0 + args.1)
 /// }
 ///
 /// App::new().route("api/my-add", web::post().to(my_handler));
 /// ```
-///
+/// 
 /// [`RpcApp::http_rpc_route`]: crate::RpcApp::http_rpc_route
 pub struct ArpyRequest<T>(pub T);
 
@@ -128,16 +122,9 @@ where
 /// ```
 /// # use std::sync::Arc;
 /// # use actix_web::{web, App, Responder};
-/// # use arpy::{FnRemote, RpcId};
 /// # use arpy_actix::http::{handler, ArpyRequest, ArpyResponse};
-/// # use serde::{Deserialize, Serialize};
 /// #
-/// #[derive(RpcId, Serialize, Deserialize, Debug)]
-/// struct MyAdd(u32, u32);
-///
-/// impl FnRemote for MyAdd {
-///     type Output = u32;
-/// }
+#[doc = include_doc::file!("src/doc.rs")]
 ///
 /// async fn my_add(args: MyAdd) -> u32 {
 ///     args.0 + args.1
@@ -148,7 +135,7 @@ where
 ///     web::post().to(|args| handler(Arc::new(my_add), args)),
 /// );
 /// ```
-///
+/// 
 /// [`RpcApp::http_rpc_route`]: crate::RpcApp::http_rpc_route
 pub async fn handler<F, Args>(f: Arc<F>, ArpyRequest(args): ArpyRequest<Args>) -> impl Responder
 where
