@@ -58,6 +58,7 @@ pub fn function_body(input: TokenStream) -> TokenStream {
     }
 
     let source = parse_file(&args.file);
+    let mut found_body = false;
 
     // TODO: Don't remove top level comments
     let parts = source.items().filter_map(|item| match item {
@@ -65,9 +66,10 @@ pub fn function_body(input: TokenStream) -> TokenStream {
         ast::Item::Fn(function) => function.name().and_then(|name| {
             let name = name.text();
 
-            if supporting_fns.contains(name.as_str()) {
+            if supporting_fns.remove(name.as_str()) {
                 Some(format!("{function}\n"))
             } else if name.as_str() == function_body {
+                found_body = true;
                 function.body().map(|body| {
                     remove_indent(
                         body.to_string()
@@ -85,6 +87,17 @@ pub fn function_body(input: TokenStream) -> TokenStream {
     });
 
     let doc = parts.collect::<Vec<String>>().join("\n");
+
+    if !found_body {
+        abort!(args.function_body, "{} not found", function_body);
+    }
+
+    if !supporting_fns.is_empty() {
+        abort_call_site!(
+            "Functions not found: [{}]",
+            format!("`{}`", supporting_fns.into_iter().format(", "))
+        );
+    }
 
     quote!(#doc).into()
 }
