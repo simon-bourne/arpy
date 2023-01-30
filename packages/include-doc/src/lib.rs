@@ -30,6 +30,7 @@ pub fn file(input: TokenStream) -> TokenStream {
         abort!(file_expr, "Errors in source file");
     }
 
+    // TODO: Don't remove top level comments
     // TODO: We just want to finish with a single `\n`
     let parts = source.items().map(|item| match item {
         ast::Item::Use(use_item) => hide_in_doc(use_item),
