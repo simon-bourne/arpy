@@ -28,17 +28,7 @@ use serde::Serialize;
 /// # Example
 ///
 /// ```
-/// # use actix_web::{web, App, Responder};
-/// # use arpy_actix::http::{ArpyRequest, ArpyResponse};
-/// #
-#[doc = include_doc::file!("src/doc.rs")]
-///
-/// async fn my_handler(ArpyRequest(args): ArpyRequest<MyAdd>) -> impl Responder
-/// {
-///     ArpyResponse(args.0 + args.1)
-/// }
-///
-/// App::new().route("api/my-add", web::post().to(my_handler));
+#[doc = include_doc::function_body!("tests/doc.rs", extractor_example, [my_handler])]
 /// ```
 /// 
 /// [`RpcApp::http_rpc_route`]: crate::RpcApp::http_rpc_route
@@ -120,20 +110,7 @@ where
 /// # Example
 ///
 /// ```
-/// # use std::sync::Arc;
-/// # use actix_web::{web, App, Responder};
-/// # use arpy_actix::http::{handler, ArpyRequest, ArpyResponse};
-/// #
-#[doc = include_doc::file!("src/doc.rs")]
-///
-/// async fn my_add(args: MyAdd) -> u32 {
-///     args.0 + args.1
-/// }
-///
-/// App::new().route(
-///     "api/my-add",
-///     web::post().to(|args| handler(Arc::new(my_add), args)),
-/// );
+#[doc = include_doc::function_body!("tests/doc.rs", router_example, [my_add])]
 /// ```
 /// 
 /// [`RpcApp::http_rpc_route`]: crate::RpcApp::http_rpc_route

@@ -5,28 +5,7 @@
 //! ## Example
 //!
 //! ```
-//! # use actix_web::App;
-//! # use arpy::{FnRemote, RpcId};
-//! # use arpy_actix::RpcApp;
-//! # use arpy_server::WebSocketRouter;
-//! # use serde::{Deserialize, Serialize};
-//! #
-//! #[derive(RpcId, Serialize, Deserialize, Debug)]
-//! pub struct MyFunction(pub String);
-//!
-//! impl FnRemote for MyFunction {
-//!     type Output = String;
-//! }
-//!
-//! pub async fn my_function(args: MyFunction) -> String {
-//!     format!("Hello, {}", args.0)
-//! }
-//!
-//! let ws = WebSocketRouter::new().handle(my_function);
-//!
-//! App::new()
-//!     .ws_rpc_route("ws", ws)
-//!     .http_rpc_route("http", my_function);
+#![doc = include_doc::function_body!("tests/doc.rs", router_example, [my_add])]
 //! ```
 use std::sync::Arc;
 
@@ -39,7 +18,6 @@ use arpy::FnRemote;
 use arpy_server::{FnRemoteBody, WebSocketRouter};
 use websocket::WebSocketHandler;
 
-mod doc;
 pub mod http;
 mod websocket;
 
