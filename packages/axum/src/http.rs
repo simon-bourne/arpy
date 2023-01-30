@@ -30,7 +30,7 @@ use serde::Serialize;
 /// ```
 #[doc = include_doc::function_body!("tests/doc.rs", extractor_example, [my_handler])]
 /// ```
-///
+/// 
 /// [`RpcRoute::http_rpc_route`]: crate::RpcRoute::http_rpc_route
 pub struct ArpyRequest<T>(pub T);
 
@@ -143,7 +143,7 @@ where
 /// ```
 #[doc = include_doc::function_body!("tests/doc.rs", handler_example, [my_add])]
 /// ```
-///
+/// 
 /// [`RpcRoute::http_rpc_route`]: crate::RpcRoute::http_rpc_route
 pub async fn handler<F, Args>(
     headers: HeaderMap,
