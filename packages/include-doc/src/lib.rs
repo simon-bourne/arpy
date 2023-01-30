@@ -31,24 +31,23 @@ pub fn file(input: TokenStream) -> TokenStream {
     }
 
     // TODO: Don't remove top level comments
-    // TODO: We just want to finish with a single `\n`
     let parts = source.items().map(|item| match item {
         ast::Item::Use(use_item) => hide_in_doc(use_item),
-        other_item => format!("{other_item}\n\n"),
+        other_item => format!("{other_item}\n"),
     });
 
-    let doc = parts.collect::<Vec<String>>().join("");
+    let doc = parts.collect::<Vec<String>>().join("\n");
 
     quote!(#doc).into()
 }
 
 fn hide_in_doc(item: impl Display) -> String {
-    // We need the extra `"#\n"` as otherwise rustdoc won't include attributes after
+    // We need the extra `"\n#"` as otherwise rustdoc won't include attributes after
     // hidden items. e.g.
     //
     // ```
     // # use blah
     // #[attribute_will_also_be_hidden]
     // ```
-    format!("# {}\n#\n", item.to_string().lines().format(""))
+    format!("# {}\n", item.to_string().lines().format("")) + "#"
 }
