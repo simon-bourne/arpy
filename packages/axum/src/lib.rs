@@ -5,7 +5,7 @@
 //! ## Example
 //!
 //! ```
-#![doc = include_doc::function_body!("tests/doc.rs", router_example, [my_add])]
+#![doc = include_doc::function_body!("tests/doc.rs", router_example, [my_add, MyAdd])]
 //! ```
 use std::sync::Arc;
 

@@ -28,7 +28,7 @@ use serde::Serialize;
 /// # Example
 ///
 /// ```
-#[doc = include_doc::function_body!("tests/doc.rs", extractor_example, [my_handler])]
+#[doc = include_doc::function_body!("tests/doc.rs", extractor_example, [my_handler, MyAdd])]
 /// ```
 /// 
 /// [`RpcRoute::http_rpc_route`]: crate::RpcRoute::http_rpc_route
@@ -141,7 +141,7 @@ where
 /// # Example
 ///
 /// ```
-#[doc = include_doc::function_body!("tests/doc.rs", handler_example, [my_add])]
+#[doc = include_doc::function_body!("tests/doc.rs", handler_example, [my_add, MyAdd])]
 /// ```
 /// 
 /// [`RpcRoute::http_rpc_route`]: crate::RpcRoute::http_rpc_route
