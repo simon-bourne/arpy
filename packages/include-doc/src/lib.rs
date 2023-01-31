@@ -3,6 +3,7 @@ use std::{collections::HashSet, env, fmt::Display, fs, path::Path};
 
 use itertools::Itertools;
 use proc_macro::TokenStream;
+use proc_macro2::Span;
 use proc_macro_error::{abort, abort_call_site, proc_macro_error};
 use quote::quote;
 use ra_ap_syntax::{
@@ -57,8 +58,28 @@ pub fn function_body(input: TokenStream) -> TokenStream {
         abort_call_site!("Function body can't be in list of supporting functions");
     }
 
-    let source = parse_file(&args.file);
+    let doc = doc_function_body(args.file, args.function_body, Some(&mut supporting_fns));
+
+    if !supporting_fns.is_empty() {
+        abort_call_site!(
+            "Functions not found: [{}]",
+            format!("`{}`", supporting_fns.into_iter().format(", "))
+        );
+    }
+
+    doc
+}
+
+fn doc_function_body(
+    file: LitStr,
+    function_body_ident: Ident,
+    mut supporting_fns: Option<&mut HashSet<String>>,
+) -> TokenStream {
+    let source = parse_file(&file);
+
     let mut found_body = false;
+    let function_body = function_body_ident.to_string();
+    let supporting_fns = &mut supporting_fns;
 
     // TODO: Don't remove top level comments
     let parts = source.items().filter_map(|item| match item {
@@ -66,9 +87,7 @@ pub fn function_body(input: TokenStream) -> TokenStream {
         ast::Item::Fn(function) => function.name().and_then(|name| {
             let name = name.text();
 
-            if supporting_fns.remove(name.as_str()) {
-                Some(format!("{function}\n"))
-            } else if name.as_str() == function_body {
+            if name.as_str() == function_body {
                 found_body = true;
                 function.body().map(|body| {
                     remove_indent(
@@ -79,6 +98,8 @@ pub fn function_body(input: TokenStream) -> TokenStream {
                             .trim_end_matches('}'),
                     ) + "\n"
                 })
+            } else if supporting_fns.as_mut().map(|fns| fns.remove(name.as_str())) != Some(false) {
+                Some(format!("{function}\n"))
             } else {
                 None
             }
@@ -89,14 +110,7 @@ pub fn function_body(input: TokenStream) -> TokenStream {
     let doc = parts.collect::<Vec<String>>().join("\n");
 
     if !found_body {
-        abort!(args.function_body, "{} not found", function_body);
-    }
-
-    if !supporting_fns.is_empty() {
-        abort_call_site!(
-            "Functions not found: [{}]",
-            format!("`{}`", supporting_fns.into_iter().format(", "))
-        );
+        abort!(function_body_ident, "{} not found", function_body);
     }
 
     quote!(#doc).into()
@@ -129,18 +143,9 @@ fn indent(text: &str) -> Option<usize> {
 #[proc_macro]
 #[proc_macro_error]
 pub fn file(input: TokenStream) -> TokenStream {
-    let file_expr: LitStr = parse_macro_input!(input);
-    let source = parse_file(&file_expr);
+    let file: LitStr = parse_macro_input!(input);
 
-    // TODO: Don't remove top level comments
-    let parts = source.items().map(|item| match item {
-        ast::Item::Use(use_item) => hide_in_doc(use_item),
-        other_item => format!("{other_item}\n"),
-    });
-
-    let doc = parts.collect::<Vec<String>>().join("\n");
-
-    quote!(#doc).into()
+    doc_function_body(file, Ident::new("main", Span::call_site()), None)
 }
 
 fn parse_file(file_expr: &LitStr) -> SourceFile {
