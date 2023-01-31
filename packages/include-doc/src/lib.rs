@@ -8,7 +8,7 @@ use proc_macro_error::{abort, abort_call_site, proc_macro_error};
 use quote::quote;
 use ra_ap_syntax::{
     ast::{self, HasModuleItem, HasName},
-    SourceFile,
+    SourceFile, TokenText,
 };
 use syn::{
     bracketed,
@@ -89,16 +89,8 @@ fn doc_function_body(
 
             if name.as_str() == function_body {
                 found_body = true;
-                function.body().map(|body| {
-                    remove_indent(
-                        body.to_string()
-                            .as_str()
-                            .trim()
-                            .trim_start_matches('{')
-                            .trim_end_matches('}'),
-                    ) + "\n"
-                })
-            } else if supporting_fns.as_mut().map(|fns| fns.remove(name.as_str())) != Some(false) {
+                extract_function_body(&function)
+            } else if include_function(&name, supporting_fns) {
                 Some(format!("{function}\n"))
             } else {
                 None
@@ -114,6 +106,22 @@ fn doc_function_body(
     }
 
     quote!(#doc).into()
+}
+
+fn include_function(name: &TokenText, supporting_fns: &mut Option<&mut HashSet<String>>) -> bool {
+    supporting_fns.as_mut().map(|fns| fns.remove(name.as_str())) != Some(false)
+}
+
+fn extract_function_body(function: &ast::Fn) -> Option<String> {
+    function.body().map(|body| {
+        remove_indent(
+            body.to_string()
+                .as_str()
+                .trim()
+                .trim_start_matches('{')
+                .trim_end_matches('}'),
+        ) + "\n"
+    })
 }
 
 fn remove_indent(text: &str) -> String {
