@@ -39,8 +39,6 @@ pub fn function_body(input: TokenStream) -> TokenStream {
         abort_call_site!("Function body can't be in dependencies");
     }
 
-    // TODO: Check we used all dependencies
-
     doc_function_body(args.file, args.function_body, Some(&dependencies))
 }
 
@@ -82,7 +80,6 @@ fn doc_function_body(
     let function_body = function_body_ident.to_string();
     let mut track_deps = HashSet::new();
 
-    // TODO: Don't remove top level comments
     let parts = source.items().filter_map(|item| match item {
         ast::Item::Use(use_item) => Some(hide_in_doc(use_item)),
         ast::Item::Fn(function) => function.name().and_then(|name| {
