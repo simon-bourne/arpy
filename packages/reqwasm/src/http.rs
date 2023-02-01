@@ -1,3 +1,6 @@
+//! HTTP Client.
+//!
+//! See [`Connection`] for an example.
 use arpy::{FnRemote, MimeType, RpcClient};
 use async_trait::async_trait;
 use js_sys::Uint8Array;
@@ -5,9 +8,38 @@ use reqwasm::http;
 
 use crate::Error;
 
+/// A connection to the server.
+///
+/// # Example
+///
+/// ```
+/// # use arpy::{FnClient, FnRemote, RpcId};
+/// # use serde::{Deserialize, Serialize};
+/// # use arpy_reqwasm::http::Connection;
+/// #
+/// #[derive(RpcId, Serialize, Deserialize, Debug)]
+/// struct MyAdd(u32, u32);
+///
+/// impl FnRemote for MyAdd {
+///     type Output = u32;
+/// }
+///
+/// async {
+///     let conn = Connection::new("http://127.0.0.1:9090/api");
+///     let result = MyAdd(1, 2).call(&conn).await.unwrap();
+///
+///     println!("1 + 2 = {result}");
+/// };
+/// ```
 pub struct Connection(String);
 
 impl Connection {
+    /// Constructor.
+    ///
+    /// `url` is the base url of the server, and will have [`RpcId::ID`]
+    /// appended for each RPC.
+    ///
+    /// [`RpcId::ID`]: arpy::id::RpcId::ID
     pub fn new(url: &str) -> Self {
         Self(url.to_string())
     }

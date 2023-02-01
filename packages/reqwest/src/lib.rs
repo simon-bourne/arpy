@@ -1,5 +1,5 @@
 //! Reqwest client for Arpy.
-//! 
+//!
 //! See [`Connection`] for an example.
 use arpy::{FnRemote, MimeType, RpcClient};
 use async_trait::async_trait;
@@ -27,7 +27,7 @@ use thiserror::Error;
 /// }
 ///
 /// async {
-///     let conn = Connection::new(&Client::new(), format!("http://127.0.0.1:9090/api"));
+///     let conn = Connection::new(&Client::new(), "http://127.0.0.1:9090/api");
 ///     let result = MyAdd(1, 2).call(&conn).await.unwrap();
 ///
 ///     println!("1 + 2 = {result}");
@@ -41,8 +41,10 @@ pub struct Connection {
 impl Connection {
     /// Constructor.
     ///
-    /// The stores [`Client`] for connection pooling. `url` is the base url of
-    /// the server.
+    /// This stores [`Client`] for connection pooling. `url` is the base url of
+    /// the server, and will have [`RpcId::ID`] appended for each RPC.
+    ///
+    /// [`RpcId::ID`]: arpy::id::RpcId::ID
     pub fn new(client: &Client, url: impl Into<String>) -> Self {
         Self {
             client: client.clone(),

@@ -1,3 +1,6 @@
+//! Reqwasm client for Arpy.
+//! 
+//! This provides an [`http`] and a [`websocket`] client, suitable for use from a browser.
 use std::fmt::{Debug, Display};
 
 use thiserror::Error;
@@ -5,6 +8,10 @@ use thiserror::Error;
 pub mod http;
 pub mod websocket;
 
+/// The errors that can happen during an RPC.
+///
+/// Note; This may contain sensitive information such as URLs or argument
+/// names/values.
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("Couldn't deserialize result: {0}")]
