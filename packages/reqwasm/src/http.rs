@@ -45,7 +45,7 @@ impl RpcClient for Connection {
 
         if let Some(result_type) = result.headers().get(CONTENT_TYPE) {
             if result_type != content_type.as_str() {
-                return Err(Error::InvalidResponseType(result_type));
+                return Err(Error::UnknownContentType(result_type));
             }
         }
 

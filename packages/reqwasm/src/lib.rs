@@ -14,7 +14,7 @@ pub enum Error {
     #[error("Couldn't receive response: {0}")]
     Receive(String),
     #[error("Invalid response 'content_type'")]
-    InvalidResponseType(String),
+    UnknownContentType(String),
 }
 
 impl Error {

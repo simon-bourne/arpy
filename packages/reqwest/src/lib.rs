@@ -59,7 +59,7 @@ pub enum Error {
     #[error("HTTP error code: {0}")]
     Http(reqwest::StatusCode),
     #[error("Invalid response 'content_type'")]
-    InvalidResponseType(HeaderValue),
+    UnknownContentType(HeaderValue),
 }
 
 #[async_trait(?Send)]
@@ -93,7 +93,7 @@ impl RpcClient for Connection {
 
         if let Some(result_type) = result.headers().get(CONTENT_TYPE) {
             if result_type != HeaderValue::from_static(content_type.as_str()) {
-                return Err(Error::InvalidResponseType(result_type.clone()));
+                return Err(Error::UnknownContentType(result_type.clone()));
             }
         }
 
