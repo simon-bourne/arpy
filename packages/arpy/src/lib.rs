@@ -22,7 +22,7 @@ pub trait FnRemote: id::RpcId + Serialize + DeserializeOwned + Debug {
 }
 
 /// Allow an `FnRemote` to be called like a method.
-/// 
+///
 /// A blanket implementation is provided for any `T: FnRemote`.
 #[async_trait(?Send)]
 pub trait FnClient: FnRemote {
@@ -40,7 +40,7 @@ pub trait FnClient: FnRemote {
 impl<T: FnRemote> FnClient for T {}
 
 /// Allow a fallible `FnRemote` to be called like a method.
-/// 
+///
 /// A blanket implementation is provided for any `T: FnRemote`.
 #[async_trait(?Send)]
 pub trait FnTryCient<Success, Error>: FnRemote<Output = Result<Success, Error>> {
