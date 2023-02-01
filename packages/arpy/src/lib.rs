@@ -1,16 +1,34 @@
+//! # Arpy
+//!
+//! Define RPC call signatures for use with Arpy providers. See the `examples`
+//! folder in this repo for various client/server provider examples.
 use std::{error::Error, fmt::Debug, str::FromStr};
 
+/// Derive an [`id::RpcId`].
+///
+/// It will use the kebab cased type name without any generics or module path.
 pub use arpy_macros::RpcId;
 use async_trait::async_trait;
 use serde::{de::DeserializeOwned, Serialize};
 use thiserror::Error;
 
+/// A remote procedure.
+///
+/// This defines the signature of an RPC call, which can then be used by the
+/// client or the server.
 pub trait FnRemote: id::RpcId + Serialize + DeserializeOwned + Debug {
+    /// The return type.
     type Output: Serialize + DeserializeOwned + Debug;
 }
 
+/// Allow an `FnRemote` to be called like a method.
+/// 
+/// A blanket implementation is provided for any `T: FnRemote`.
 #[async_trait(?Send)]
 pub trait FnClient: FnRemote {
+    /// The default implementation defers to [`RpcClient::call`].
+    ///
+    /// You shouldn't need to implement this.
     async fn call<C>(self, connection: &C) -> Result<Self::Output, C::Error>
     where
         C: RpcClient,
@@ -21,8 +39,14 @@ pub trait FnClient: FnRemote {
 
 impl<T: FnRemote> FnClient for T {}
 
+/// Allow a fallible `FnRemote` to be called like a method.
+/// 
+/// A blanket implementation is provided for any `T: FnRemote`.
 #[async_trait(?Send)]
 pub trait FnTryCient<Success, Error>: FnRemote<Output = Result<Success, Error>> {
+    /// The default implementation defers to [`RpcClient::try_call`].
+    ///
+    /// You shouldn't need to implement this.
     async fn try_call<C>(self, connection: &C) -> Result<Success, ErrorFrom<C::Error, Error>>
     where
         C: RpcClient,
@@ -85,12 +109,17 @@ pub trait RpcClient {
     }
 }
 
+/// Uniquely identify an RPC call.
 pub mod id {
+    /// This should be `derive`d with [`crate::RpcId`].
     pub trait RpcId {
+        /// `ID` should be a short identifier to uniquely identify an RPC call
+        /// on a server.
         const ID: &'static str;
     }
 }
 
+/// Some common mime types supported by Arpy providers.
 #[derive(Copy, Clone)]
 pub enum MimeType {
     Cbor,
@@ -99,6 +128,7 @@ pub enum MimeType {
 }
 
 impl MimeType {
+    /// The mime type, for example `"application/cbor"`.
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Cbor => "application/cbor",
