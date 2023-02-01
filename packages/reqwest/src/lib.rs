@@ -1,3 +1,6 @@
+//! Reqwest client for Arpy.
+//! 
+//! See [`Connection`] for an example.
 use arpy::{FnRemote, MimeType, RpcClient};
 use async_trait::async_trait;
 use reqwest::{
