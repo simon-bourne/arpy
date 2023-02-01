@@ -36,10 +36,15 @@ impl<Success, Error, T> FnTryCient<Success, Error> for T where
 {
 }
 
+/// An error from a fallible RPC call.
+/// 
+/// A fallible RPC call is one where `FnRemote::Output = Result<_, _>`.
 #[derive(Error, Debug)]
 pub enum ErrorFrom<C, S> {
+    /// A transport error.
     #[error("Connection: {0}")]
     Connection(C),
+    /// An error from `FnRemote::Output`.
     #[error("Server: {0}")]
     Server(S),
 }
