@@ -380,10 +380,8 @@ name = "arpy-reqwest"
 version = "0.1.0"
 dependencies = [
  "arpy",
- "arpy-axum",
  "arpy-test",
  "async-trait",
- "axum",
  "ciborium",
  "reqwest",
  "serde",

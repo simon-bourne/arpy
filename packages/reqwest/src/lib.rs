@@ -7,6 +7,29 @@ use reqwest::{
 use thiserror::Error;
 
 /// A connection to the server.
+///
+/// # Example
+///
+/// ```
+/// # use arpy::{FnClient, FnRemote, RpcId};
+/// # use reqwest::Client;
+/// # use serde::{Deserialize, Serialize};
+/// # use arpy_reqwest::Connection;
+/// #
+/// #[derive(RpcId, Serialize, Deserialize, Debug)]
+/// struct MyAdd(u32, u32);
+///
+/// impl FnRemote for MyAdd {
+///     type Output = u32;
+/// }
+///
+/// async {
+///     let conn = Connection::new(&Client::new(), format!("http://127.0.0.1:9090/api"));
+///     let result = MyAdd(1, 2).call(&conn).await.unwrap();
+///
+///     println!("1 + 2 = {result}");
+/// };
+/// ```
 pub struct Connection {
     client: Client,
     url: String,
@@ -15,13 +38,8 @@ pub struct Connection {
 impl Connection {
     /// Constructor.
     ///
-    /// The stores a reference to [`Client`] for connection pooling. `url` is
-    /// the base url of the server.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// ```
+    /// The stores [`Client`] for connection pooling. `url` is the base url of
+    /// the server.
     pub fn new(client: &Client, url: impl Into<String>) -> Self {
         Self {
             client: client.clone(),
