@@ -37,7 +37,7 @@ impl<Success, Error, T> FnTryCient<Success, Error> for T where
 }
 
 /// An error from a fallible RPC call.
-/// 
+///
 /// A fallible RPC call is one where `FnRemote::Output = Result<_, _>`.
 #[derive(Error, Debug)]
 pub enum ErrorFrom<C, S> {
@@ -49,14 +49,26 @@ pub enum ErrorFrom<C, S> {
     Server(S),
 }
 
+/// An RPC client.
+///
+/// Implement this to provide an RPC client. It uses [`async_trait`] to provide
+/// `async` methods. See the `arpy_reqwest` crate for an example.
+///
+/// [`async_trait`]: async_trait::async_trait
 #[async_trait(?Send)]
 pub trait RpcClient {
+    /// A transport error
     type Error: Error + Debug + Send + Sync + 'static;
 
+    /// Make an RPC call.
     async fn call<F>(&self, function: F) -> Result<F::Output, Self::Error>
     where
         F: FnRemote;
 
+    /// Make a fallible RPC call.
+    ///
+    /// You shouldn't need to implement this. It just flattens any errors sent
+    /// from the server into an [`ErrorFrom`].
     async fn try_call<F, Success, Error>(
         &self,
         function: F,
