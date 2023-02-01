@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-arpy = { path = "../arpy" }
+arpy = { path = "../arpy", version = "0.1.0" }
 arpy-server = { path = "../server" }
 async-trait = "0.1.63"
 axum = { version = "0.6.3", features = ["ws", "headers"] }
