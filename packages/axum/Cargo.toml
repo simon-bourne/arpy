@@ -15,7 +15,7 @@ categories = [
 
 [dependencies]
 arpy = { path = "../arpy", version = "0.1.0" }
-arpy-server = { path = "../server" }
+arpy-server = { path = "../server", version = "0.1.0" }
 async-trait = "0.1.63"
 axum = { version = "0.6.3", features = ["ws", "headers"] }
 ciborium = "0.2.0"
