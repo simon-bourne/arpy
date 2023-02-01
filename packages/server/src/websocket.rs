@@ -1,4 +1,4 @@
-//! Building blocks to implement an Arpy server.
+//! Building blocks to implement an Arpy Websocket server.
 //!
 //! See the `axum` and `actix` implementations under `packages` in the
 //! repository.
