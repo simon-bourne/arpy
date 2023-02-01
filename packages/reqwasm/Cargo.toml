@@ -2,6 +2,16 @@
 name = "arpy-reqwasm"
 version = "0.1.0"
 edition = "2021"
+readme = "../../README.md"
+license = "MIT OR Apache-2.0"
+description = "Reqwasm client for the Arpy RPC library"
+keywords = ["RPC", "web", "wasm"]
+categories = [
+    "web-programming",
+    "web-programming::http-client",
+    "web-programming::websocket",
+    "network-programming",
+]
 
 [dependencies]
 arpy = { path = "../arpy", version = "0.1.0" }

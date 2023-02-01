@@ -2,6 +2,16 @@
 name = "arpy-axum"
 version = "0.1.0"
 edition = "2021"
+readme = "../../README.md"
+license = "MIT OR Apache-2.0"
+description = "Axum server for the Arpy RPC library"
+keywords = ["RPC", "web", "axum", "http", "websocket"]
+categories = [
+    "web-programming",
+    "web-programming::http-server",
+    "web-programming::websocket",
+    "network-programming",
+]
 
 [dependencies]
 arpy = { path = "../arpy", version = "0.1.0" }

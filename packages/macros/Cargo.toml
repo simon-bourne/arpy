@@ -2,6 +2,14 @@
 name = "arpy-macros"
 version = "0.1.0"
 edition = "2021"
+readme = "../../README.md"
+license = "MIT OR Apache-2.0"
+description = "Macros for the Arpy RPC library"
+keywords = ["RPC", "web"]
+categories = [
+    "web-programming",
+    "network-programming",
+]
 
 [lib]
 proc-macro = true

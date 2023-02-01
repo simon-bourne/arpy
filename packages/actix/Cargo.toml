@@ -2,6 +2,16 @@
 name = "arpy-actix"
 version = "0.1.0"
 edition = "2021"
+readme = "../../README.md"
+license = "MIT OR Apache-2.0"
+description = "Actix server for the Arpy RPC library"
+keywords = ["RPC", "web", "actix", "http", "websocket"]
+categories = [
+    "web-programming",
+    "web-programming::http-server",
+    "web-programming::websocket",
+    "network-programming",
+]
 
 [dependencies]
 actix-rt = "2.8.0"
