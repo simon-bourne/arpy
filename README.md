@@ -1,18 +1,15 @@
 # Arpy: RPC for Rust
 
+[![tests](https://github.com/simon-bourne/arpy/actions/workflows/tests.yml/badge.svg)](https://github.com/simon-bourne/arpy/actions/workflows/tests.yml)
+[![crates.io](https://img.shields.io/crates/v/arpy.svg)](https://crates.io/crates/arpy)
+[![Documentation](https://docs.rs/arpy/badge.svg)](https://docs.rs/arpy)
+[![MIT/Apache-2 licensed](https://img.shields.io/crates/l/arpy)](./LICENSE-APACHE)
+
 Define your RPC function signatures and use them with various client/server implementations.
 
-## Current Transport Implementations
+## Transport Implementations
 
-### Client
-
-- [Reqwest]
-- [Reqwasm]
-
-### Server
-
-- [Axum]
-- [Actix]
+Currently there are client implmentations for [Reqwest] and [Reqwasm]. There are server implementations for [Axum] and [Actix].
 
 ## Usage
 
