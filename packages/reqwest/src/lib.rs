@@ -48,6 +48,11 @@ impl Connection {
     }
 }
 
+/// The errors that can happen during an RPC.
+///
+/// Note; This may contain sensitive information. In particular,
+/// [`reqwest::Error`] may contain URLs, and `DeserializeResult` may contain
+/// argument names/values.
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("Couldn't deserialize result: {0}")]
