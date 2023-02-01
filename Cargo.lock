@@ -367,6 +367,7 @@ dependencies = [
  "async-trait",
  "ciborium",
  "futures",
+ "include-doc",
  "js-sys",
  "reqwasm",
  "serde",

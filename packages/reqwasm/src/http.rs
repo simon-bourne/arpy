@@ -13,23 +13,7 @@ use crate::Error;
 /// # Example
 ///
 /// ```
-/// # use arpy::{FnClient, FnRemote, RpcId};
-/// # use serde::{Deserialize, Serialize};
-/// # use arpy_reqwasm::http::Connection;
-/// #
-/// #[derive(RpcId, Serialize, Deserialize, Debug)]
-/// struct MyAdd(u32, u32);
-///
-/// impl FnRemote for MyAdd {
-///     type Output = u32;
-/// }
-///
-/// async {
-///     let conn = Connection::new("http://127.0.0.1:9090/api");
-///     let result = MyAdd(1, 2).call(&conn).await.unwrap();
-///
-///     println!("1 + 2 = {result}");
-/// };
+#[doc = include_doc::function_body!("tests/doc.rs", http_client, [my_app, MyAdd])]
 /// ```
 pub struct Connection(String);
 

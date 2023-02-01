@@ -1,3 +1,6 @@
+//! Websocket Client.
+//!
+//! See [`Connection`] for an example.
 use arpy::{FnRemote, RpcClient};
 use async_trait::async_trait;
 use futures::{
@@ -9,6 +12,13 @@ use tokio::sync::Mutex;
 
 use crate::Error;
 
+/// A connection to the server.
+///
+/// # Example
+///
+/// ```
+#[doc = include_doc::function_body!("tests/doc.rs", websocket_client, [my_app, MyAdd])]
+/// ```
 pub struct Connection(Mutex<SharedConnection>);
 
 struct SharedConnection {
@@ -17,6 +27,11 @@ struct SharedConnection {
 }
 
 impl Connection {
+    /// Constructor.
+    ///
+    /// It's safe to make concurrent RPC calls, but only one can make progress
+    /// at a time. Internally it will lock a [`tokio::sync::Mutex`] while a call
+    /// is in flight.
     pub fn new(ws: WebSocket) -> Self {
         let (write, read) = ws.split();
         Self(Mutex::new(SharedConnection { write, read }))
