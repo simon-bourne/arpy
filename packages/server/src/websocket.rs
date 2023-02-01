@@ -1,3 +1,7 @@
+//! Building blocks to implement an Arpy server.
+//!
+//! See the `axum` and `actix` implementations under `packages` in the
+//! repository.
 use std::{collections::HashMap, io, mem::size_of, result, sync::Arc};
 
 use arpy::FnRemote;
@@ -7,20 +11,23 @@ use thiserror::Error;
 
 use crate::FnRemoteBody;
 
+/// A collection of RPC calls to be handled by a WebSocket.
 #[derive(Default)]
 pub struct WebSocketRouter(HashMap<Id, RpcHandler>);
 
 impl WebSocketRouter {
+    /// Construct an empty router.
     pub fn new() -> Self {
         Self::default()
     }
 
-    pub fn handle<F, Args>(mut self, f: F) -> Self
+    /// Add a handler for any RPC calls to `FSig`.
+    pub fn handle<F, FSig>(mut self, f: F) -> Self
     where
-        F: FnRemoteBody<Args> + Send + Sync + 'static,
-        Args: FnRemote + Send + Sync + 'static,
+        F: FnRemoteBody<FSig> + Send + Sync + 'static,
+        FSig: FnRemote + Send + Sync + 'static,
     {
-        let id = Args::ID.as_bytes().to_vec();
+        let id = FSig::ID.as_bytes().to_vec();
         let f = Arc::new(f);
         self.0.insert(
             id,
@@ -30,12 +37,12 @@ impl WebSocketRouter {
         self
     }
 
-    async fn run<F, Args>(f: Arc<F>, input: &[u8]) -> Result<Vec<u8>>
+    async fn run<F, FSig>(f: Arc<F>, input: &[u8]) -> Result<Vec<u8>>
     where
-        F: FnRemoteBody<Args> + Send + Sync + 'static,
-        Args: FnRemote + Send + Sync + 'static,
+        F: FnRemoteBody<FSig> + Send + Sync + 'static,
+        FSig: FnRemote + Send + Sync + 'static,
     {
-        let args: Args = ciborium::de::from_reader(input).map_err(Error::Deserialization)?;
+        let args: FSig = ciborium::de::from_reader(input).map_err(Error::Deserialization)?;
         let result = f.run(args).await;
         let mut body = Vec::new();
         ciborium::ser::into_writer(&result, &mut body).unwrap();
@@ -43,6 +50,9 @@ impl WebSocketRouter {
     }
 }
 
+/// Handle raw messages from a websocket.
+///
+/// Use `WebSocketHandler` to implement a Websocket server.
 pub struct WebSocketHandler(HashMap<Id, RpcHandler>);
 
 impl WebSocketHandler {
@@ -50,6 +60,10 @@ impl WebSocketHandler {
         Self(router.0)
     }
 
+    /// Handle a raw Websocket message.
+    ///
+    /// This will read an `RpcId` from the message and route it to the correct
+    /// implementation.
     pub async fn handle_msg(&self, msg: &[u8]) -> Result<Vec<u8>> {
         let (id, msg) = split_message(msg, size_of::<u32>(), "ID len")?;
         let id_len = u32::from_le_bytes(id.try_into().unwrap());
