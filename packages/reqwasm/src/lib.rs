@@ -1,6 +1,7 @@
 //! Reqwasm client for Arpy.
-//! 
-//! This provides an [`http`] and a [`websocket`] client, suitable for use from a browser.
+//!
+//! This provides an [`http`] and a [`websocket`] client, suitable for use from
+//! a browser.
 use std::fmt::{Debug, Display};
 
 use thiserror::Error;
