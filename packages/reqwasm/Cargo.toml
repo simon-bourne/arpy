@@ -12,10 +12,11 @@ serde = { version = "1.0.152", features = ["derive"] }
 thiserror = "1.0.38"
 js-sys = "0.3.60"
 futures = "0.3.25"
+tokio = { version = "1.25.0", default-features = false, features = [
+    "macros",
+    "sync",
+] }
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.33"
 arpy-test = { path = "../test" }
-
-[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-tokio = { version = "1.24.2", features = ["macros", "process"] }

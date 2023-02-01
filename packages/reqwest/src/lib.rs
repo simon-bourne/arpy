@@ -6,15 +6,25 @@ use reqwest::{
 };
 use thiserror::Error;
 
-pub struct Connection<'a> {
-    client: &'a Client,
+/// A connection to the server.
+pub struct Connection {
+    client: Client,
     url: String,
 }
 
-impl<'a> Connection<'a> {
-    pub fn new(client: &'a Client, url: impl Into<String>) -> Self {
+impl Connection {
+    /// Constructor.
+    ///
+    /// The stores a reference to [`Client`] for connection pooling. `url` is
+    /// the base url of the server.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// ```
+    pub fn new(client: &Client, url: impl Into<String>) -> Self {
         Self {
-            client,
+            client: client.clone(),
             url: url.into(),
         }
     }
@@ -35,10 +45,10 @@ pub enum Error {
 }
 
 #[async_trait(?Send)]
-impl<'a> RpcClient for Connection<'a> {
+impl RpcClient for Connection {
     type Error = Error;
 
-    async fn call<Args>(&mut self, args: Args) -> Result<Args::Output, Self::Error>
+    async fn call<Args>(&self, args: Args) -> Result<Args::Output, Self::Error>
     where
         Args: FnRemote,
     {

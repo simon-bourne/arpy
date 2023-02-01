@@ -9,17 +9,17 @@ wasm_bindgen_test_configure!(run_in_browser);
 
 #[wasm_bindgen_test]
 async fn http_client() {
-    let mut connection = http::Connection::new(&server_url("http"));
+    let connection = http::Connection::new(&server_url("http"));
 
-    assert_eq!(3, Add(1, 2).call(&mut connection).await.unwrap());
+    assert_eq!(3, Add(1, 2).call(&connection).await.unwrap());
 }
 
 #[wasm_bindgen_test]
 async fn websocket_client() {
     let ws = WebSocket::open(&server_url("ws")).unwrap();
-    let mut connection = websocket::Connection::new(ws);
+    let connection = websocket::Connection::new(ws);
 
-    assert_eq!(3, Add(1, 2).call(&mut connection).await.unwrap());
+    assert_eq!(3, Add(1, 2).call(&connection).await.unwrap());
 }
 
 fn server_url(scheme: &str) -> String {

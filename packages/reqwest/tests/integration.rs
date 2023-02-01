@@ -9,10 +9,7 @@ use reqwest::Client;
 async fn fallible_http_call() {
     end_to_end_test(|port| async move {
         let client = Client::new();
-        let result = Add(2, 3)
-            .call(&mut connection(&client, port))
-            .await
-            .unwrap();
+        let result = Add(2, 3).call(&connection(&client, port)).await.unwrap();
         assert_eq!(result, 5);
     })
     .await
@@ -23,7 +20,7 @@ async fn infallible_http_call() {
     end_to_end_test(|port| async move {
         let client = Client::new();
         let result = TryMultiply(2, 3)
-            .try_call(&mut connection(&client, port))
+            .try_call(&connection(&client, port))
             .await
             .unwrap();
         assert_eq!(result, 6);
@@ -31,7 +28,7 @@ async fn infallible_http_call() {
     .await
 }
 
-fn connection(client: &'_ Client, port: u16) -> Connection<'_> {
+fn connection(client: &Client, port: u16) -> Connection {
     Connection::new(client, format!("http://127.0.0.1:{port}/http"))
 }
 

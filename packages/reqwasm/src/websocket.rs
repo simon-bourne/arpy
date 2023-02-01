@@ -5,10 +5,13 @@ use futures::{
     SinkExt, StreamExt,
 };
 use reqwasm::websocket::{futures::WebSocket, Message};
+use tokio::sync::Mutex;
 
 use crate::Error;
 
-pub struct Connection {
+pub struct Connection(Mutex<SharedConnection>);
+
+struct SharedConnection {
     write: SplitSink<WebSocket, Message>,
     read: SplitStream<WebSocket>,
 }
@@ -16,7 +19,7 @@ pub struct Connection {
 impl Connection {
     pub fn new(ws: WebSocket) -> Self {
         let (write, read) = ws.split();
-        Self { write, read }
+        Self(Mutex::new(SharedConnection { write, read }))
     }
 }
 
@@ -24,7 +27,7 @@ impl Connection {
 impl RpcClient for Connection {
     type Error = Error;
 
-    async fn call<Args>(&mut self, args: Args) -> Result<Args::Output, Self::Error>
+    async fn call<Args>(&self, args: Args) -> Result<Args::Output, Self::Error>
     where
         Args: FnRemote,
     {
@@ -38,15 +41,18 @@ impl RpcClient for Connection {
         body.extend(id);
         ciborium::ser::into_writer(&args, &mut body).unwrap();
 
-        self.write
-            .send(Message::Bytes(body))
-            .await
-            .map_err(|e| Error::Send(e.to_string()))?;
+        let result = {
+            let mut conn = self.0.lock().await;
+            conn.write
+                .send(Message::Bytes(body))
+                .await
+                .map_err(|e| Error::Send(e.to_string()))?;
 
-        let result = if let Some(result) = self.read.next().await {
-            result.map_err(Error::receive)?
-        } else {
-            Err(Error::receive("End of stream"))?
+            if let Some(result) = conn.read.next().await {
+                result.map_err(Error::receive)?
+            } else {
+                Err(Error::receive("End of stream"))?
+            }
         };
 
         let result: Args::Output = match result {

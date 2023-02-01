@@ -11,7 +11,7 @@ pub trait FnRemote: id::RpcId + Serialize + DeserializeOwned + Debug {
 
 #[async_trait(?Send)]
 pub trait FnClient: FnRemote {
-    async fn call<C>(self, connection: &mut C) -> Result<Self::Output, C::Error>
+    async fn call<C>(self, connection: &C) -> Result<Self::Output, C::Error>
     where
         C: RpcClient,
     {
@@ -23,7 +23,7 @@ impl<T: FnRemote> FnClient for T {}
 
 #[async_trait(?Send)]
 pub trait FnTryCient<Success, Error>: FnRemote<Output = Result<Success, Error>> {
-    async fn try_call<C>(self, connection: &mut C) -> Result<Success, ErrorFrom<C::Error, Error>>
+    async fn try_call<C>(self, connection: &C) -> Result<Success, ErrorFrom<C::Error, Error>>
     where
         C: RpcClient,
     {
@@ -48,12 +48,12 @@ pub enum ErrorFrom<C, S> {
 pub trait RpcClient {
     type Error: Error + Debug + Send + Sync + 'static;
 
-    async fn call<F>(&mut self, function: F) -> Result<F::Output, Self::Error>
+    async fn call<F>(&self, function: F) -> Result<F::Output, Self::Error>
     where
         F: FnRemote;
 
     async fn try_call<F, Success, Error>(
-        &mut self,
+        &self,
         function: F,
     ) -> Result<Success, ErrorFrom<Self::Error, Error>>
     where

@@ -43,7 +43,7 @@ And then call them with various client implementations, for example, using the `
 
 ```rust
 let mut connection = http::Connection::new(&format!("http://127.0.0.1:9090/api"));
-let result = Add(1, 2).call(&mut connection).await?;
+let result = Add(1, 2).call(&connection).await?;
 
 assert_eq!(3, result);
 ```
