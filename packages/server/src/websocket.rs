@@ -78,7 +78,7 @@ impl WebSocketHandler {
 
 fn split_message<'a>(msg: &'a [u8], mid: usize, name: &str) -> Result<(&'a [u8], &'a [u8])> {
     if mid > msg.len() {
-        return Err(Error::Protocol(format!("Not enought bytes for {name}")));
+        return Err(Error::Protocol(format!("Not enough bytes for {name}")));
     }
 
     Ok(msg.split_at(mid))

@@ -9,7 +9,7 @@ Define your RPC function signatures and use them with various client/server impl
 
 ## Transport Implementations
 
-Currently there are client implmentations for [Reqwest] and [Reqwasm]. There are server implementations for [Axum] and [Actix].
+Currently there are client implementations for [Reqwest] and [Reqwasm]. There are server implementations for [Axum] and [Actix].
 
 ## Usage
 
