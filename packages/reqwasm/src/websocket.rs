@@ -4,10 +4,7 @@
 use arpy::{FnRemote, RpcClient};
 use async_trait::async_trait;
 use bincode::Options;
-use futures::{
-    stream::{SplitSink, SplitStream},
-    SinkExt, StreamExt,
-};
+use futures::{SinkExt, StreamExt};
 use reqwasm::websocket::{futures::WebSocket, Message};
 use tokio::sync::Mutex;
 
@@ -20,12 +17,7 @@ use crate::Error;
 /// ```
 #[doc = include_doc::function_body!("tests/doc.rs", websocket_client, [my_app, MyAdd])]
 /// ```
-pub struct Connection(Mutex<SharedConnection>);
-
-struct SharedConnection {
-    write: SplitSink<WebSocket, Message>,
-    read: SplitStream<WebSocket>,
-}
+pub struct Connection(Mutex<WebSocket>);
 
 impl Connection {
     /// Constructor.
@@ -34,8 +26,7 @@ impl Connection {
     /// at a time. Internally it will lock a [`tokio::sync::Mutex`] while a call
     /// is in flight.
     pub fn new(ws: WebSocket) -> Self {
-        let (write, read) = ws.split();
-        Self(Mutex::new(SharedConnection { write, read }))
+        Self(Mutex::new(ws))
     }
 }
 
@@ -55,13 +46,12 @@ impl RpcClient for Connection {
         serializer.serialize_into(&mut body, &args).unwrap();
 
         let result = {
-            let mut conn = self.0.lock().await;
-            conn.write
-                .send(Message::Bytes(body))
+            let mut ws = self.0.lock().await;
+            ws.send(Message::Bytes(body))
                 .await
                 .map_err(|e| Error::Send(e.to_string()))?;
 
-            if let Some(result) = conn.read.next().await {
+            if let Some(result) = ws.next().await {
                 result.map_err(Error::receive)?
             } else {
                 Err(Error::receive("End of stream"))?
