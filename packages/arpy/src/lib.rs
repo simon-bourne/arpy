@@ -9,6 +9,7 @@ use std::{error::Error, fmt::Debug, str::FromStr};
 /// It will use the kebab cased type name without any generics or module path.
 pub use arpy_macros::RpcId;
 use async_trait::async_trait;
+use futures::Stream;
 use serde::{de::DeserializeOwned, Serialize};
 use thiserror::Error;
 
@@ -60,19 +61,6 @@ impl<Success, Error, T> FnTryClient<Success, Error> for T where
 {
 }
 
-/// An error from a fallible RPC call.
-///
-/// A fallible RPC call is one where `FnRemote::Output = Result<_, _>`.
-#[derive(Error, Debug)]
-pub enum ErrorFrom<C, S> {
-    /// A transport error.
-    #[error("Connection: {0}")]
-    Connection(C),
-    /// An error from `FnRemote::Output`.
-    #[error("Server: {0}")]
-    Server(S),
-}
-
 /// An RPC client.
 ///
 /// Implement this to provide an RPC client. It uses [`async_trait`] to provide
@@ -107,6 +95,34 @@ pub trait RpcClient {
             Err(e) => Err(ErrorFrom::Connection(e)),
         }
     }
+}
+
+pub trait Subscription: id::RpcId + Serialize + DeserializeOwned + Debug {
+    type Output: Serialize + DeserializeOwned + Debug;
+}
+
+#[async_trait(?Send)]
+pub trait SubscriptionClient {
+    /// A transport error
+    type Error: Error + Debug + Send + Sync + 'static;
+    type Output<Item: DeserializeOwned>: Stream<Item = Result<Item, Self::Error>>;
+
+    async fn subscribe<T>(&self, event_type: &str) -> Result<Self::Output<T>, Self::Error>
+    where
+        T: DeserializeOwned;
+}
+
+/// An error from a fallible RPC call.
+///
+/// A fallible RPC call is one where `FnRemote::Output = Result<_, _>`.
+#[derive(Error, Debug)]
+pub enum ErrorFrom<C, S> {
+    /// A transport error.
+    #[error("Connection: {0}")]
+    Connection(C),
+    /// An error from `FnRemote::Output`.
+    #[error("Server: {0}")]
+    Server(S),
 }
 
 /// Uniquely identify an RPC call.

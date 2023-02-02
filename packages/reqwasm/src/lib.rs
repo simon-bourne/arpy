@@ -6,6 +6,7 @@ use std::fmt::{Debug, Display};
 
 use thiserror::Error;
 
+pub mod eventsource;
 pub mod http;
 pub mod websocket;
 
