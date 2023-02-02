@@ -365,6 +365,7 @@ dependencies = [
  "arpy",
  "arpy-test",
  "async-trait",
+ "bincode",
  "ciborium",
  "futures",
  "include-doc",
@@ -395,7 +396,7 @@ name = "arpy-server"
 version = "0.1.0"
 dependencies = [
  "arpy",
- "ciborium",
+ "bincode",
  "futures",
  "thiserror",
 ]
@@ -504,6 +505,15 @@ name = "base64"
 version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a4a4ddaa51a5bc52a6948f74c06d20aaaddb71924eab79b8c97a8c556e942d6a"
+
+[[package]]
+name = "bincode"
+version = "1.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1f45e9417d87227c7a56d22e471c6206462cba514c7590c09aff4cf6d1ddcad"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "bitflags"

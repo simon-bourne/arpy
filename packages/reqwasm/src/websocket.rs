@@ -3,7 +3,7 @@
 //! See [`Connection`] for an example.
 use arpy::{FnRemote, RpcClient};
 use async_trait::async_trait;
-use ciborium::{de, ser};
+use bincode::Options;
 use futures::{
     stream::{SplitSink, SplitStream},
     SinkExt, StreamExt,
@@ -48,8 +48,11 @@ impl RpcClient for Connection {
         Args: FnRemote,
     {
         let mut body = Vec::new();
-        ser::into_writer(Args::ID.as_bytes(), &mut body).unwrap();
-        ser::into_writer(&args, &mut body).unwrap();
+        let serializer = bincode::DefaultOptions::new();
+        serializer
+            .serialize_into(&mut body, Args::ID.as_bytes())
+            .unwrap();
+        serializer.serialize_into(&mut body, &args).unwrap();
 
         let result = {
             let mut conn = self.0.lock().await;
@@ -67,9 +70,9 @@ impl RpcClient for Connection {
 
         let result: Args::Output = match result {
             Message::Text(_) => Err(Error::deserialize_result("Unexpected text result"))?,
-            Message::Bytes(bytes) => {
-                de::from_reader(bytes.as_slice()).map_err(Error::deserialize_result)?
-            }
+            Message::Bytes(bytes) => serializer
+                .deserialize_from(bytes.as_slice())
+                .map_err(Error::deserialize_result)?,
         };
 
         Ok(result)

@@ -5,7 +5,7 @@
 use std::{collections::HashMap, io, result, sync::Arc};
 
 use arpy::FnRemote;
-use ciborium::{de, ser};
+use bincode::Options;
 use futures::future::BoxFuture;
 use thiserror::Error;
 
@@ -42,10 +42,14 @@ impl WebSocketRouter {
         F: FnRemoteBody<FSig> + Send + Sync + 'static,
         FSig: FnRemote + Send + Sync + 'static,
     {
-        let args: FSig = de::from_reader(input).map_err(Error::Deserialization)?;
+        let serializer = bincode::DefaultOptions::new();
+        let args: FSig = serializer
+            .deserialize_from(input)
+            .map_err(Error::Deserialization)?;
         let result = f.run(args).await;
         let mut body = Vec::new();
-        ser::into_writer(&result, &mut body).unwrap();
+        serializer.serialize_into(&mut body, &result).unwrap();
+
         Ok(body)
     }
 }
@@ -65,7 +69,10 @@ impl WebSocketHandler {
     /// This will read an `RpcId` from the message and route it to the correct
     /// implementation.
     pub async fn handle_msg(&self, mut msg: &[u8]) -> Result<Vec<u8>> {
-        let id: Vec<u8> = de::from_reader(&mut msg).unwrap();
+        let id: Vec<u8> = bincode::DefaultOptions::new()
+            .allow_trailing_bytes()
+            .deserialize_from(&mut msg)
+            .unwrap();
 
         let Some(function) = self.0.get(&id)
         else { return Err(Error::FunctionNotFound) };
@@ -81,7 +88,7 @@ pub enum Error {
     #[error("Error unpacking message: {0}")]
     Protocol(String),
     #[error("Deserialization: {0}")]
-    Deserialization(de::Error<io::Error>),
+    Deserialization(bincode::Error),
 }
 
 pub type Result<T> = result::Result<T, Error>;
