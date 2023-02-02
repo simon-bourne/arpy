@@ -414,6 +414,7 @@ dependencies = [
  "arpy-axum",
  "arpy-server",
  "axum",
+ "futures",
  "hyper",
  "serde",
  "tokio",

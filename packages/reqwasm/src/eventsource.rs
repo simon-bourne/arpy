@@ -14,8 +14,12 @@ use web_sys::MessageEvent;
 
 use crate::Error;
 
-pub struct Connection {
-    url: String,
+pub struct Connection(String);
+
+impl Connection {
+    pub fn new(url: impl Into<String>) -> Self {
+        Self(url.into())
+    }
 }
 
 #[async_trait(?Send)]
@@ -27,7 +31,7 @@ impl SubscriptionClient for Connection {
     where
         T: DeserializeOwned,
     {
-        let subscription = EventSource::new(&self.url)
+        let subscription = EventSource::new(&self.0)
             .map_err(Error::send)?
             .subscribe(event_type)
             .map_err(Error::send)?;
