@@ -2,10 +2,10 @@
 //!
 //! See the `axum` and `actix` implementations under `packages` in the
 //! repository.
-use std::{collections::HashMap, io, mem::size_of, result, sync::Arc};
+use std::{collections::HashMap, io, result, sync::Arc};
 
 use arpy::FnRemote;
-use ciborium::de;
+use ciborium::{de, ser};
 use futures::future::BoxFuture;
 use thiserror::Error;
 
@@ -37,15 +37,15 @@ impl WebSocketRouter {
         self
     }
 
-    async fn run<F, FSig>(f: Arc<F>, input: &[u8]) -> Result<Vec<u8>>
+    async fn run<F, FSig>(f: Arc<F>, input: impl io::Read) -> Result<Vec<u8>>
     where
         F: FnRemoteBody<FSig> + Send + Sync + 'static,
         FSig: FnRemote + Send + Sync + 'static,
     {
-        let args: FSig = ciborium::de::from_reader(input).map_err(Error::Deserialization)?;
+        let args: FSig = de::from_reader(input).map_err(Error::Deserialization)?;
         let result = f.run(args).await;
         let mut body = Vec::new();
-        ciborium::ser::into_writer(&result, &mut body).unwrap();
+        ser::into_writer(&result, &mut body).unwrap();
         Ok(body)
     }
 }
@@ -64,24 +64,14 @@ impl WebSocketHandler {
     ///
     /// This will read an `RpcId` from the message and route it to the correct
     /// implementation.
-    pub async fn handle_msg(&self, msg: &[u8]) -> Result<Vec<u8>> {
-        let (id, msg) = split_message(msg, size_of::<u32>(), "ID len")?;
-        let id_len = u32::from_le_bytes(id.try_into().unwrap());
-        let (id, args) = split_message(msg, id_len as usize, "ID")?;
+    pub async fn handle_msg(&self, mut msg: &[u8]) -> Result<Vec<u8>> {
+        let id: Vec<u8> = de::from_reader(&mut msg).unwrap();
 
-        let Some(function) = self.0.get(id)
+        let Some(function) = self.0.get(&id)
         else { return Err(Error::FunctionNotFound) };
 
-        function(args).await
+        function(msg).await
     }
-}
-
-fn split_message<'a>(msg: &'a [u8], mid: usize, name: &str) -> Result<(&'a [u8], &'a [u8])> {
-    if mid > msg.len() {
-        return Err(Error::Protocol(format!("Not enough bytes for {name}")));
-    }
-
-    Ok(msg.split_at(mid))
 }
 
 #[derive(Error, Debug)]

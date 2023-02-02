@@ -3,6 +3,7 @@
 //! See [`Connection`] for an example.
 use arpy::{FnRemote, RpcClient};
 use async_trait::async_trait;
+use ciborium::{de, ser};
 use futures::{
     stream::{SplitSink, SplitStream},
     SinkExt, StreamExt,
@@ -47,14 +48,8 @@ impl RpcClient for Connection {
         Args: FnRemote,
     {
         let mut body = Vec::new();
-        let id = Args::ID.as_bytes();
-        body.extend(
-            u32::try_from(id.len())
-                .map_err(|_| Error::Send("ID too large".to_string()))?
-                .to_le_bytes(),
-        );
-        body.extend(id);
-        ciborium::ser::into_writer(&args, &mut body).unwrap();
+        ser::into_writer(Args::ID.as_bytes(), &mut body).unwrap();
+        ser::into_writer(&args, &mut body).unwrap();
 
         let result = {
             let mut conn = self.0.lock().await;
@@ -73,7 +68,7 @@ impl RpcClient for Connection {
         let result: Args::Output = match result {
             Message::Text(_) => Err(Error::deserialize_result("Unexpected text result"))?,
             Message::Bytes(bytes) => {
-                ciborium::de::from_reader(bytes.as_slice()).map_err(Error::deserialize_result)?
+                de::from_reader(bytes.as_slice()).map_err(Error::deserialize_result)?
             }
         };
 
