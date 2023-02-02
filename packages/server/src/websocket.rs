@@ -72,7 +72,7 @@ impl WebSocketHandler {
         let id: Vec<u8> = bincode::DefaultOptions::new()
             .allow_trailing_bytes()
             .deserialize_from(&mut msg)
-            .unwrap();
+            .map_err(Error::Deserialization)?;
 
         let Some(function) = self.0.get(&id)
         else { return Err(Error::FunctionNotFound) };
