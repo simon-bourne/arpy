@@ -1,5 +1,5 @@
 use anyhow::Result;
-use arpy::{FnClient, FnTryCient, RpcClient};
+use arpy::{FnClient, FnTryClient, RpcClient};
 use arpy_example_common::{MyFallibleFunction, MyFunction, PORT};
 use arpy_reqwest::Connection;
 use reqwest::Client;
