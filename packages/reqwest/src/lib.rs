@@ -27,8 +27,8 @@ use thiserror::Error;
 /// }
 ///
 /// async {
-///     let conn = Connection::new(&Client::new(), "http://127.0.0.1:9090/api");
-///     let result = MyAdd(1, 2).call(&conn).await.unwrap();
+///     let mut conn = Connection::new(&Client::new(), "http://127.0.0.1:9090/api");
+///     let result = MyAdd(1, 2).call(&mut conn).await.unwrap();
 ///
 ///     println!("1 + 2 = {result}");
 /// };
@@ -76,7 +76,7 @@ pub enum Error {
 impl RpcClient for Connection {
     type Error = Error;
 
-    async fn call<Args>(&self, args: Args) -> Result<Args::Output, Self::Error>
+    async fn call<Args>(&mut self, args: Args) -> Result<Args::Output, Self::Error>
     where
         Args: FnRemote,
     {

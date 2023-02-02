@@ -30,7 +30,7 @@ pub trait FnClient: FnRemote {
     /// The default implementation defers to [`RpcClient::call`].
     ///
     /// You shouldn't need to implement this.
-    async fn call<C>(self, connection: &C) -> Result<Self::Output, C::Error>
+    async fn call<C>(self, connection: &mut C) -> Result<Self::Output, C::Error>
     where
         C: RpcClient,
     {
@@ -48,7 +48,7 @@ pub trait FnTryClient<Success, Error>: FnRemote<Output = Result<Success, Error>>
     /// The default implementation defers to [`RpcClient::try_call`].
     ///
     /// You shouldn't need to implement this.
-    async fn try_call<C>(self, connection: &C) -> Result<Success, ErrorFrom<C::Error, Error>>
+    async fn try_call<C>(self, connection: &mut C) -> Result<Success, ErrorFrom<C::Error, Error>>
     where
         C: RpcClient,
     {
@@ -73,7 +73,7 @@ pub trait RpcClient {
     type Error: Error + Debug + Send + Sync + 'static;
 
     /// Make an RPC call.
-    async fn call<F>(&self, function: F) -> Result<F::Output, Self::Error>
+    async fn call<F>(&mut self, function: F) -> Result<F::Output, Self::Error>
     where
         F: FnRemote;
 
@@ -82,7 +82,7 @@ pub trait RpcClient {
     /// You shouldn't need to implement this. It just flattens any errors sent
     /// from the server into an [`ErrorFrom`].
     async fn try_call<F, Success, Error>(
-        &self,
+        &mut self,
         function: F,
     ) -> Result<Success, ErrorFrom<Self::Error, Error>>
     where

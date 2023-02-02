@@ -15,7 +15,10 @@ use reqwest::Client;
 async fn http_call() {
     end_to_end_test(|port| async move {
         let client = Client::new();
-        let result = Add(2, 3).call(&connection(&client, port)).await.unwrap();
+        let result = Add(2, 3)
+            .call(&mut connection(&client, port))
+            .await
+            .unwrap();
         assert_eq!(result, 5);
     })
     .await
