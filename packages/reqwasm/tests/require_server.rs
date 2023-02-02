@@ -1,4 +1,6 @@
 //! These tests are run from `provide_server`
+use arpy::FnClient;
+use arpy_reqwasm::{http, websocket};
 use arpy_test::{Add, PORT};
 use reqwasm::websocket::futures::WebSocket;
 use wasm_bindgen_test::{wasm_bindgen_test, wasm_bindgen_test_configure};
@@ -7,14 +9,14 @@ wasm_bindgen_test_configure!(run_in_browser);
 
 #[wasm_bindgen_test]
 async fn http_client() {
-    let connection = http::Connection::new(&server_url("http"));
+    let connection = http::Connection::new(&server_url("http", "http"));
 
     assert_eq!(3, Add(1, 2).call(&connection).await.unwrap());
 }
 
 #[wasm_bindgen_test]
 async fn websocket_client() {
-    let ws = WebSocket::open(&server_url("ws")).unwrap();
+    let ws = WebSocket::open(&server_url("ws", "ws")).unwrap();
     let connection = websocket::Connection::new(ws);
 
     assert_eq!(3, Add(1, 2).call(&connection).await.unwrap());
