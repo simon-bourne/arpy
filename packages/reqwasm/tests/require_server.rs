@@ -1,7 +1,5 @@
 //! These tests are run from `provide_server`
-use arpy::FnClient;
-use arpy_reqwasm::{http, websocket};
-use arpy_test::Add;
+use arpy_test::{Add, PORT};
 use reqwasm::websocket::futures::WebSocket;
 use wasm_bindgen_test::{wasm_bindgen_test, wasm_bindgen_test_configure};
 
@@ -22,7 +20,8 @@ async fn websocket_client() {
     assert_eq!(3, Add(1, 2).call(&connection).await.unwrap());
 }
 
-fn server_url(scheme: &str) -> String {
-    let port = option_env!("TCP_PORT").unwrap();
-    format!("{scheme}://127.0.0.1:{port}/{scheme}")
+fn server_url(scheme: &str, route: &str) -> String {
+    let port_str = format!("{PORT}");
+    let port = option_env!("TCP_PORT").unwrap_or(&port_str);
+    format!("{scheme}://127.0.0.1:{port}/{route}")
 }
