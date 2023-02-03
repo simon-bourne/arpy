@@ -20,7 +20,7 @@ async fn infallible_http_call() {
     end_to_end_test(|port| async move {
         let client = Client::new();
         let result = TryMultiply(2, 3)
-            .try_call(&mut connection(&client, port))
+            .try_call(&connection(&client, port))
             .await
             .unwrap();
         assert_eq!(result, 6);

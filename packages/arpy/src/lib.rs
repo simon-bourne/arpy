@@ -2,7 +2,13 @@
 //!
 //! Define RPC call signatures for use with Arpy providers. See the `examples`
 //! folder in this repo for various client/server provider examples.
-use std::{error::Error, fmt::Debug, str::FromStr};
+use std::{
+    error::Error,
+    fmt::Debug,
+    pin::Pin,
+    str::FromStr,
+    task::{Context, Poll},
+};
 
 /// Derive an [`id::RpcId`].
 ///
@@ -10,6 +16,7 @@ use std::{error::Error, fmt::Debug, str::FromStr};
 pub use arpy_macros::RpcId;
 use async_trait::async_trait;
 use futures::{Future, Stream};
+use pin_project::pin_project;
 use serde::{de::DeserializeOwned, Serialize};
 use thiserror::Error;
 
@@ -48,7 +55,7 @@ pub trait FnTryClient<Success, Error>: FnRemote<Output = Result<Success, Error>>
     /// The default implementation defers to [`RpcClient::try_call`].
     ///
     /// You shouldn't need to implement this.
-    async fn try_call<C>(self, connection: &mut C) -> Result<Success, ErrorFrom<C::Error, Error>>
+    async fn try_call<C>(self, connection: &C) -> Result<Success, ErrorFrom<C::Error, Error>>
     where
         C: RpcClient,
     {
@@ -82,7 +89,7 @@ pub trait RpcClient {
     /// You shouldn't need to implement this. It just flattens any errors sent
     /// from the server into an [`ErrorFrom`].
     async fn try_call<F, Success, Error>(
-        &mut self,
+        &self,
         function: F,
     ) -> Result<Success, ErrorFrom<Self::Error, Error>>
     where
@@ -106,6 +113,50 @@ pub trait AsyncRpcClient {
     async fn call_async<F>(&self, function: F) -> Result<Self::Call<F::Output>, Self::Error>
     where
         F: FnRemote;
+
+    async fn try_call_async<F, Success, Error>(
+        &self,
+        function: F,
+    ) -> Result<TryCall<Success, Error, Self::Error, Self::Call<Result<Success, Error>>>, Self::Error>
+    where
+        Self: Sized,
+        F: FnRemote<Output = Result<Success, Error>>,
+        Success: DeserializeOwned,
+        Error: DeserializeOwned,
+    {
+        Ok(TryCall {
+            call: self.call_async(function).await?,
+        })
+    }
+}
+
+#[pin_project]
+pub struct TryCall<Success, Error, TransportError, Call>
+where
+    Call: Future<Output = Result<Result<Success, Error>, TransportError>>,
+{
+    #[pin]
+    call: Call,
+}
+
+impl<Success, TransportError, Error, Call> Future for TryCall<Success, Error, TransportError, Call>
+where
+    Call: Future<Output = Result<Result<Success, Error>, TransportError>>,
+    Success: DeserializeOwned,
+    Error: DeserializeOwned,
+{
+    type Output = Result<Success, ErrorFrom<TransportError, Error>>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        match self.project().call.poll(cx) {
+            Poll::Ready(reply) => Poll::Ready(match reply {
+                Ok(Ok(ok)) => Ok(ok),
+                Ok(Err(e)) => Err(ErrorFrom::Server(e)),
+                Err(e) => Err(ErrorFrom::Connection(e)),
+            }),
+            Poll::Pending => Poll::Pending,
+        }
+    }
 }
 
 #[async_trait(?Send)]
@@ -122,6 +173,30 @@ pub trait FnAsyncClient: FnRemote {
 }
 
 impl<T: FnRemote> FnAsyncClient for T {}
+
+#[async_trait(?Send)]
+pub trait FnAsyncTryClient<Success, Error>: FnRemote<Output = Result<Success, Error>> {
+    /// The default implementation defers to [`RpcClient::try_call`].
+    ///
+    /// You shouldn't need to implement this.
+    async fn try_call_async<C>(
+        self,
+        connection: &C,
+    ) -> Result<TryCall<Success, Error, C::Error, C::Call<Result<Success, Error>>>, C::Error>
+    where
+        Self: Sized,
+        Success: DeserializeOwned,
+        Error: DeserializeOwned,
+        C: AsyncRpcClient,
+    {
+        connection.try_call_async(self).await
+    }
+}
+
+impl<Success, Error, T> FnAsyncTryClient<Success, Error> for T where
+    T: FnRemote<Output = Result<Success, Error>>
+{
+}
 
 pub trait Subscription: id::RpcId + Serialize + DeserializeOwned + Debug {
     type Output: Serialize + DeserializeOwned + Debug;

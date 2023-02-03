@@ -260,6 +260,7 @@ dependencies = [
  "arpy-macros",
  "async-trait",
  "futures",
+ "pin-project",
  "serde",
  "thiserror",
 ]

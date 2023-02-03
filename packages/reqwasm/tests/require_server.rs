@@ -1,7 +1,7 @@
 //! These tests are run from `provide_server`
-use arpy::{FnAsyncClient, FnClient};
+use arpy::{FnAsyncClient, FnAsyncTryClient, FnClient, FnTryClient};
 use arpy_reqwasm::{http, websocket};
-use arpy_test::{Add, PORT};
+use arpy_test::{Add, TryMultiply, PORT};
 use reqwasm::websocket::futures::WebSocket;
 use wasm_bindgen_test::{wasm_bindgen_test, wasm_bindgen_test_configure};
 
@@ -20,6 +20,7 @@ async fn simple_websocket() {
     let connection = websocket::Connection::new(ws);
 
     assert_eq!(3, Add(1, 2).call(&connection).await.unwrap());
+    assert_eq!(12, TryMultiply(3, 4).try_call(&connection).await.unwrap());
 }
 
 #[wasm_bindgen_test]
@@ -28,10 +29,10 @@ async fn out_of_order_websocket() {
     let connection = websocket::Connection::new(ws);
 
     let result1 = Add(1, 2).call_async(&connection).await.unwrap();
-    let result2 = Add(3, 4).call_async(&connection).await.unwrap();
+    let result2 = TryMultiply(3, 4).try_call_async(&connection).await.unwrap();
 
     // Await in reverse order
-    assert_eq!(7, result2.await.unwrap());
+    assert_eq!(12, result2.await.unwrap());
     assert_eq!(3, result1.await.unwrap());
 }
 
