@@ -32,6 +32,9 @@ pub struct Connection(UnboundedSender<SendMsg>);
 impl Connection {
     /// Constructor.
     pub fn new(ws: WebSocket) -> Self {
+        // We use an `unbounded_channel` because bounding could cause deadlocks or lost
+        // messages (depending on the implementaiton). The queue will be no larger than
+        // the number of in-flight calls.
         let (send, to_send) = mpsc::unbounded_channel::<SendMsg>();
         let mut bg_ws = BackgroundWebsocket {
             ws,
@@ -92,7 +95,6 @@ impl RpcClient for Connection {
     }
 }
 
-// TODO: Use bounded or unbounded?
 struct BackgroundWebsocket {
     ws: WebSocket,
     to_send: mpsc::UnboundedReceiver<SendMsg>,
