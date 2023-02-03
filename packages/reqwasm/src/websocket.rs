@@ -68,7 +68,7 @@ impl ConcurrentRpcClient for Connection {
     // TODO: Tests
     // TODO: `fn send` to send a fire and forget message
     // TODO: `fn subscribe`
-    async fn call_async<F>(&self, function: F) -> Result<Self::Call<F::Output>, Self::Error>
+    async fn begin_call<F>(&self, function: F) -> Result<Self::Call<F::Output>, Self::Error>
     where
         F: FnRemote,
     {
@@ -125,7 +125,7 @@ impl RpcClient for Connection {
     where
         Args: FnRemote,
     {
-        self.call_async(args).await?.await
+        self.begin_call(args).await?.await
     }
 }
 

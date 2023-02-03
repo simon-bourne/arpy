@@ -40,14 +40,14 @@ pub trait FnRemote: id::RpcId + Serialize + DeserializeOwned + Debug {
     }
 
     /// The default implementation defers to
-    /// [`ConcurrentRpcClient::call_async`].
+    /// [`ConcurrentRpcClient::begin_call`].
     ///
     /// You shouldn't need to implement this.
-    async fn call_async<C>(self, connection: &C) -> Result<C::Call<Self::Output>, C::Error>
+    async fn begin_call<C>(self, connection: &C) -> Result<C::Call<Self::Output>, C::Error>
     where
         C: ConcurrentRpcClient,
     {
-        connection.call_async(self).await
+        connection.begin_call(self).await
     }
 }
 
@@ -67,17 +67,17 @@ pub trait FnTryRemote<Success, Error>: FnRemote<Output = Result<Success, Error>>
     }
 
     /// The default implementation defers to
-    /// [`ConcurrentRpcClient::try_call_async`].
+    /// [`ConcurrentRpcClient::try_begin_call`].
     ///
     /// You shouldn't need to implement this.
-    async fn try_call_async<C>(self, connection: &C) -> Result<TryCall<Success, Error, C>, C::Error>
+    async fn try_begin_call<C>(self, connection: &C) -> Result<TryCall<Success, Error, C>, C::Error>
     where
         Self: Sized,
         Success: DeserializeOwned,
         Error: DeserializeOwned,
         C: ConcurrentRpcClient,
     {
-        connection.try_call_async(self).await
+        connection.try_begin_call(self).await
     }
 }
 
@@ -122,17 +122,58 @@ pub trait RpcClient {
     }
 }
 
+/// An RPC Client that can have many calls in-flight at once.
 #[async_trait(?Send)]
 pub trait ConcurrentRpcClient {
     /// A transport error
     type Error: Error + Debug + Send + Sync + 'static;
     type Call<Output: DeserializeOwned>: Future<Output = Result<Output, Self::Error>>;
 
-    async fn call_async<F>(&self, function: F) -> Result<Self::Call<F::Output>, Self::Error>
+    /// Initiate a call, but don't wait for results until `await`ed again.
+    ///
+    /// `MyFn(...).begin_call(&conn).await` will asynchronously send the call
+    /// message to the server and yield another future. It won't wait for the
+    /// reply until you `await` the second future.
+    ///
+    /// This allows you to send off a bunch of requests to the server at once,
+    /// without waiting for round trip results. When you want the results, await
+    /// the second futures in any order. The connection will handle routing
+    /// replies to the correct futures. The memory used will be proportional
+    /// to the maximum number of requests in flight at once.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use arpy::{ConcurrentRpcClient, FnRemote, RpcId};
+    /// # use serde::{Serialize, Deserialize};
+    /// # use std::future::Ready;
+    ///
+    /// #[derive(RpcId, Serialize, Deserialize, Debug)]
+    /// struct MyAdd(u32, u32);
+    ///
+    /// impl FnRemote for MyAdd {
+    ///     type Output = u32;
+    /// }
+    ///
+    /// async fn example(conn: impl ConcurrentRpcClient) {
+    ///     // Send off 2 request to the server.
+    ///     let result1 = MyAdd(1, 2).begin_call(&conn).await.unwrap();
+    ///     let result2 = MyAdd(3, 4).begin_call(&conn).await.unwrap();
+    ///
+    ///     // Now wait for the results. The order doesn't matter here.
+    ///     assert_eq!(7, result2.await.unwrap());
+    ///     assert_eq!(3, result1.await.unwrap());
+    /// }
+    /// ```
+    async fn begin_call<F>(&self, function: F) -> Result<Self::Call<F::Output>, Self::Error>
     where
         F: FnRemote;
 
-    async fn try_call_async<F, Success, Error>(
+    /// Fallible version of [`Self::begin_call`].
+    ///
+    /// This will flatten the transport and application errors into an
+    /// [`ErrorFrom`].
+    async fn try_begin_call<F, Success, Error>(
         &self,
         function: F,
     ) -> Result<TryCall<Success, Error, Self>, Self::Error>
@@ -143,11 +184,13 @@ pub trait ConcurrentRpcClient {
         Error: DeserializeOwned,
     {
         Ok(TryCall {
-            call: self.call_async(function).await?,
+            call: self.begin_call(function).await?,
         })
     }
 }
 
+/// A future that flattens a transport and application error into an
+/// [`ErrorFrom`].
 #[pin_project]
 pub struct TryCall<Success, Error, Client>
 where

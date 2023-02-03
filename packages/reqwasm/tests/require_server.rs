@@ -28,8 +28,8 @@ async fn out_of_order_websocket() {
     let ws = WebSocket::open(&server_url("ws", "ws")).unwrap();
     let connection = websocket::Connection::new(ws);
 
-    let result1 = Add(1, 2).call_async(&connection).await.unwrap();
-    let result2 = TryMultiply(3, 4).try_call_async(&connection).await.unwrap();
+    let result1 = Add(1, 2).begin_call(&connection).await.unwrap();
+    let result2 = TryMultiply(3, 4).try_begin_call(&connection).await.unwrap();
 
     // Await in reverse order
     assert_eq!(12, result2.await.unwrap());
