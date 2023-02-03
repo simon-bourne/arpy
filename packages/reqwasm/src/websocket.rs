@@ -64,8 +64,6 @@ impl ConcurrentRpcClient for Connection {
     type Call<Output: DeserializeOwned> = Call<Output>;
     type Error = Error;
 
-    // TODO: Doc
-    // TODO: Tests
     // TODO: `fn send` to send a fire and forget message
     // TODO: `fn subscribe`
     async fn begin_call<F>(&self, function: F) -> Result<Self::Call<F::Output>, Self::Error>
