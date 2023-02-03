@@ -1,4 +1,4 @@
-use arpy::{FnRemote, RpcClient, MsgId};
+use arpy::{FnRemote, MsgId, RpcClient};
 use arpy_reqwasm::{http, websocket};
 use reqwasm::websocket::futures::WebSocket;
 use serde::{Deserialize, Serialize};
