@@ -228,9 +228,9 @@ pub trait ServerSentEvents {
     type Error: Error + Debug + Send + Sync + 'static;
     type Output<Item: DeserializeOwned>: Stream<Item = Result<Item, Self::Error>>;
 
-    async fn subscribe<T>(&self, event_type: &str) -> Result<Self::Output<T>, Self::Error>
+    async fn subscribe<T>(&self) -> Result<Self::Output<T>, Self::Error>
     where
-        T: DeserializeOwned;
+        T: DeserializeOwned + id::RpcId;
 }
 
 /// An error from a fallible RPC call.

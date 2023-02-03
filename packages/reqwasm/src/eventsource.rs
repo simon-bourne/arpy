@@ -4,7 +4,7 @@ use std::{
     task::{self, Poll},
 };
 
-use arpy::ServerSentEvents;
+use arpy::{id, ServerSentEvents};
 use async_trait::async_trait;
 use futures::Stream;
 use gloo_net::eventsource::futures::{EventSource, EventSourceSubscription};
@@ -27,13 +27,13 @@ impl ServerSentEvents for Connection {
     type Error = Error;
     type Output<Item: DeserializeOwned> = SubscriptionMessage<Item>;
 
-    async fn subscribe<T>(&self, event_type: &str) -> Result<Self::Output<T>, Self::Error>
+    async fn subscribe<T>(&self) -> Result<Self::Output<T>, Self::Error>
     where
-        T: DeserializeOwned,
+        T: DeserializeOwned + id::RpcId,
     {
         let subscription = EventSource::new(&self.0)
             .map_err(Error::send)?
-            .subscribe(event_type)
+            .subscribe(T::ID)
             .map_err(Error::send)?;
 
         Ok(SubscriptionMessage {
