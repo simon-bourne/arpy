@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use actix_web::{web, App, Responder};
-use arpy::{FnRemote, RpcId};
+use arpy::{FnRemote, MsgId};
 use arpy_actix::{
     http::{handler, ArpyRequest, ArpyResponse},
     RpcApp,
@@ -9,7 +9,7 @@ use arpy_actix::{
 use arpy_server::WebSocketRouter;
 use serde::{Deserialize, Serialize};
 
-#[derive(RpcId, Serialize, Deserialize, Debug)]
+#[derive(MsgId, Serialize, Deserialize, Debug)]
 struct MyAdd(u32, u32);
 
 impl FnRemote for MyAdd {

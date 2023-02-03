@@ -34,8 +34,8 @@ mod websocket;
 pub trait RpcRoute {
     /// Add an HTTP route to handle a single RPC endpoint.
     ///
-    /// Routes are constructed with `"{prefix}/{rpc_id}"` where `rpc_id = T::ID`
-    /// from [`RpcId`][arpy::id::RpcId].
+    /// Routes are constructed with `"{prefix}/{msg_id}"` where `msg_id = T::ID`
+    /// from [`MsgId`][arpy::id::MsgId].
     fn http_rpc_route<F, T>(self, prefix: &str, f: F) -> Self
     where
         F: FnRemoteBody<T> + Send + Sync + 'static,
@@ -52,7 +52,7 @@ pub trait RpcRoute {
         keep_alive: Option<KeepAlive>,
     ) -> Self
     where
-        T: Serialize + id::RpcId + 'static,
+        T: Serialize + id::MsgId + 'static,
         S: Stream<Item = Result<T, Error>> + Send + 'static,
         Error: Into<BoxError> + 'static;
 }
@@ -92,7 +92,7 @@ impl RpcRoute for Router {
         keep_alive: Option<KeepAlive>,
     ) -> Self
     where
-        T: Serialize + id::RpcId + 'static,
+        T: Serialize + id::MsgId + 'static,
         S: Stream<Item = Result<T, Error>> + Send + 'static,
         Error: Into<BoxError> + 'static,
     {
@@ -115,7 +115,7 @@ impl RpcRoute for Router {
 ///
 /// This uses `serde_json` to serialize data, and assumes it can't fail. See
 /// [`serde_json::to_writer`] for more details.
-pub async fn sse_handler<T: Serialize + id::RpcId, Error: Into<BoxError>>(
+pub async fn sse_handler<T: Serialize + id::MsgId, Error: Into<BoxError>>(
     events: impl Stream<Item = Result<T, Error>> + Send + 'static,
 ) -> Sse<impl Stream<Item = Result<Event, Error>>> {
     Sse::new(

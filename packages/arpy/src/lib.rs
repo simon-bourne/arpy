@@ -10,10 +10,10 @@ use std::{
     task::{Context, Poll},
 };
 
-/// Derive an [`id::RpcId`].
+/// Derive an [`id::MsgId`].
 ///
 /// It will use the kebab cased type name without any generics or module path.
-pub use arpy_macros::RpcId;
+pub use arpy_macros::MsgId;
 use async_trait::async_trait;
 use futures::{Future, Stream};
 use pin_project::pin_project;
@@ -25,7 +25,7 @@ use thiserror::Error;
 /// This defines the signature of an RPC call, which can then be used by the
 /// client or the server.
 #[async_trait(?Send)]
-pub trait FnRemote: id::RpcId + Serialize + DeserializeOwned + Debug {
+pub trait FnRemote: id::MsgId + Serialize + DeserializeOwned + Debug {
     /// The return type.
     type Output: Serialize + DeserializeOwned + Debug;
 
@@ -144,11 +144,11 @@ pub trait ConcurrentRpcClient {
     /// # Example
     ///
     /// ```
-    /// # use arpy::{ConcurrentRpcClient, FnRemote, RpcId};
+    /// # use arpy::{ConcurrentRpcClient, FnRemote, MsgId};
     /// # use serde::{Serialize, Deserialize};
     /// # use std::future::Ready;
     ///
-    /// #[derive(RpcId, Serialize, Deserialize, Debug)]
+    /// #[derive(MsgId, Serialize, Deserialize, Debug)]
     /// struct MyAdd(u32, u32);
     ///
     /// impl FnRemote for MyAdd {
@@ -230,7 +230,7 @@ pub trait ServerSentEvents {
 
     async fn subscribe<T>(&self) -> Result<Self::Output<T>, Self::Error>
     where
-        T: DeserializeOwned + id::RpcId;
+        T: DeserializeOwned + id::MsgId;
 }
 
 /// An error from a fallible RPC call.
@@ -248,8 +248,8 @@ pub enum ErrorFrom<C, S> {
 
 /// Uniquely identify an RPC call.
 pub mod id {
-    /// This should be `derive`d with [`crate::RpcId`].
-    pub trait RpcId {
+    /// This should be `derive`d with [`crate::MsgId`].
+    pub trait MsgId {
         /// `ID` should be a short identifier to uniquely identify an RPC call
         /// on a server.
         const ID: &'static str;

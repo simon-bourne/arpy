@@ -20,10 +20,10 @@ pub struct Connection(String);
 impl Connection {
     /// Constructor.
     ///
-    /// `url` is the base url of the server, and will have [`RpcId::ID`]
+    /// `url` is the base url of the server, and will have [`MsgId::ID`]
     /// appended for each RPC.
     ///
-    /// [`RpcId::ID`]: arpy::id::RpcId::ID
+    /// [`MsgId::ID`]: arpy::id::MsgId::ID
     pub fn new(url: &str) -> Self {
         Self(url.to_string())
     }

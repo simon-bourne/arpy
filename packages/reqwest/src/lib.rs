@@ -14,12 +14,12 @@ use thiserror::Error;
 /// # Example
 ///
 /// ```
-/// # use arpy::{FnRemote, RpcId};
+/// # use arpy::{FnRemote, MsgId};
 /// # use reqwest::Client;
 /// # use serde::{Deserialize, Serialize};
 /// # use arpy_reqwest::Connection;
 /// #
-/// #[derive(RpcId, Serialize, Deserialize, Debug)]
+/// #[derive(MsgId, Serialize, Deserialize, Debug)]
 /// struct MyAdd(u32, u32);
 ///
 /// impl FnRemote for MyAdd {
@@ -42,9 +42,9 @@ impl Connection {
     /// Constructor.
     ///
     /// This stores [`Client`] for connection pooling. `url` is the base url of
-    /// the server, and will have [`RpcId::ID`] appended for each RPC.
+    /// the server, and will have [`MsgId::ID`] appended for each RPC.
     ///
-    /// [`RpcId::ID`]: arpy::id::RpcId::ID
+    /// [`MsgId::ID`]: arpy::id::MsgId::ID
     pub fn new(client: &Client, url: impl Into<String>) -> Self {
         Self {
             client: client.clone(),

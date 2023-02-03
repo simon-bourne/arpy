@@ -1,9 +1,9 @@
-use arpy::{FnRemote, RpcClient, RpcId};
+use arpy::{FnRemote, RpcClient, MsgId};
 use arpy_reqwasm::{http, websocket};
 use reqwasm::websocket::futures::WebSocket;
 use serde::{Deserialize, Serialize};
 
-#[derive(RpcId, Serialize, Deserialize, Debug)]
+#[derive(MsgId, Serialize, Deserialize, Debug)]
 struct MyAdd(u32, u32);
 
 impl FnRemote for MyAdd {

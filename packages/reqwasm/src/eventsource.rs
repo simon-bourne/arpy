@@ -29,7 +29,7 @@ impl ServerSentEvents for Connection {
 
     async fn subscribe<T>(&self) -> Result<Self::Output<T>, Self::Error>
     where
-        T: DeserializeOwned + id::RpcId,
+        T: DeserializeOwned + id::MsgId,
     {
         let subscription = EventSource::new(&self.0)
             .map_err(Error::send)?

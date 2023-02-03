@@ -71,7 +71,7 @@ impl WebSocketHandler {
 
     /// Handle a raw Websocket message.
     ///
-    /// This will read an `RpcId` from the message and route it to the correct
+    /// This will read an `MsgId` from the message and route it to the correct
     /// implementation.
     pub async fn handle_msg(&self, mut msg: &[u8]) -> Result<Vec<u8>> {
         let id: Vec<u8> = bincode::DefaultOptions::new()

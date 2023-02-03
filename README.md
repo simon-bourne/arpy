@@ -18,14 +18,14 @@ Define your RPC signatures, implement them on the server and call them on the cl
 ### Defining RPC Signatures
 
 ```rust
-#[derive(RpcId, Serialize, Deserialize, Debug)]
+#[derive(MsgId, Serialize, Deserialize, Debug)]
 pub struct Add(pub i32, pub i32);
 
 impl FnRemote for Add {
     type Output = i32;
 }
 
-#[derive(RpcId, Serialize, Deserialize, Debug)]
+#[derive(MsgId, Serialize, Deserialize, Debug)]
 pub struct TryMultiply(pub i32, pub i32);
 
 impl FnRemote for TryMultiply {

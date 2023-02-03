@@ -26,8 +26,8 @@ mod websocket;
 pub trait RpcApp {
     /// Add an HTTP route to handle a single RPC endpoint.
     ///
-    /// Routes are constructed with `"{prefix}/{rpc_id}"` where `rpc_id = T::ID`
-    /// from [`RpcId`][arpy::id::RpcId].
+    /// Routes are constructed with `"{prefix}/{msg_id}"` where `msg_id = T::ID`
+    /// from [`MsgId`][arpy::id::MsgId].
     fn http_rpc_route<F, T>(self, prefix: &str, f: F) -> Self
     where
         F: FnRemoteBody<T> + 'static,
