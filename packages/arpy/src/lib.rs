@@ -163,7 +163,7 @@ where
 
 #[async_trait(?Send)]
 pub trait FnAsyncClient: FnRemote {
-    /// The default implementation defers to [`RpcClient::call`].
+    /// The default implementation defers to [`AsyncRpcClient::call_async`].
     ///
     /// You shouldn't need to implement this.
     async fn call_async<C>(self, connection: &C) -> Result<C::Call<Self::Output>, C::Error>
@@ -178,7 +178,7 @@ impl<T: FnRemote> FnAsyncClient for T {}
 
 #[async_trait(?Send)]
 pub trait FnAsyncTryClient<Success, Error>: FnRemote<Output = Result<Success, Error>> {
-    /// The default implementation defers to [`RpcClient::try_call`].
+    /// The default implementation defers to [`AsyncRpcClient::try_call_async`].
     ///
     /// You shouldn't need to implement this.
     async fn try_call_async<C>(self, connection: &C) -> Result<TryCall<Success, Error, C>, C::Error>
