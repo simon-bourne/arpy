@@ -3,15 +3,10 @@ use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
 };
 
-use arpy::id;
 use arpy_axum::RpcRoute;
 use arpy_server::WebSocketRouter;
-use axum::{
-    response::{sse::Event, Sse},
-    routing::{get, IntoMakeService},
-    Router, Server,
-};
-use futures::{stream, Stream, StreamExt};
+use axum::{routing::IntoMakeService, Router, Server};
+use futures::{stream, Stream};
 use hyper::server::conn::AddrIncoming;
 use tower_http::cors::CorsLayer;
 
@@ -25,23 +20,15 @@ pub async fn try_multiply(args: TryMultiply) -> Result<i32, ()> {
     Ok(args.0 * args.1)
 }
 
-async fn sse_handler<T: id::RpcId>() -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
-    Sse::new(
-        stream::repeat_with(|| {
-            Event::default()
-                .event(T::ID)
-                .json_data("Hi!".to_string())
-                .unwrap()
-        })
-        .map(Ok),
-    )
+fn sse_stream() -> impl Stream<Item = Result<Add, Infallible>> {
+    stream::repeat_with(|| Ok(Add(1, 2)))
 }
 
 pub fn dev_server(port: u16) -> axum::Server<AddrIncoming, IntoMakeService<Router>> {
     let ws = WebSocketRouter::new().handle(add).handle(try_multiply);
 
     let app = Router::new()
-        .route("/sse", get(sse_handler::<Add>))
+        .sse_route("/sse", sse_stream, None)
         .http_rpc_route("/http", add)
         .http_rpc_route("/http", try_multiply)
         .ws_rpc_route("/ws", ws)
