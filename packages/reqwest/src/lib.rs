@@ -14,7 +14,7 @@ use thiserror::Error;
 /// # Example
 ///
 /// ```
-/// # use arpy::{FnClient, FnRemote, RpcId};
+/// # use arpy::{FnRemote, RpcId};
 /// # use reqwest::Client;
 /// # use serde::{Deserialize, Serialize};
 /// # use arpy_reqwest::Connection;

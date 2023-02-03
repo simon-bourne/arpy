@@ -1,5 +1,5 @@
 //! These tests are run from `provide_server`
-use arpy::{FnClient, FnTryClient};
+use arpy::{FnRemote, FnTryClient};
 use arpy_reqwasm::{http, websocket};
 use arpy_test::{Add, TryMultiply, PORT};
 use reqwasm::websocket::futures::WebSocket;

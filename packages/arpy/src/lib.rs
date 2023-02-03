@@ -24,16 +24,11 @@ use thiserror::Error;
 ///
 /// This defines the signature of an RPC call, which can then be used by the
 /// client or the server.
+#[async_trait(?Send)]
 pub trait FnRemote: id::RpcId + Serialize + DeserializeOwned + Debug {
     /// The return type.
     type Output: Serialize + DeserializeOwned + Debug;
-}
 
-/// Allow an `FnRemote` to be called like a method.
-///
-/// A blanket implementation is provided for any `T: FnRemote`.
-#[async_trait(?Send)]
-pub trait FnClient: FnRemote {
     /// The default implementation defers to [`RpcClient::call`].
     ///
     /// You shouldn't need to implement this.
@@ -54,8 +49,6 @@ pub trait FnClient: FnRemote {
         connection.call_async(self).await
     }
 }
-
-impl<T: FnRemote> FnClient for T {}
 
 /// Allow a fallible `FnRemote` to be called like a method.
 ///

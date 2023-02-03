@@ -1,7 +1,7 @@
 use std::{future::Future, net::SocketAddr};
 
 use actix_web::{App, HttpServer};
-use arpy::FnClient;
+use arpy::FnRemote;
 use arpy_actix::RpcApp;
 use arpy_reqwest::Connection;
 use arpy_server::WebSocketRouter;
