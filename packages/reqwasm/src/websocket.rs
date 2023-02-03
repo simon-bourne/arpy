@@ -1,11 +1,22 @@
 //! Websocket Client.
 //!
 //! See [`Connection`] for an example.
+use std::future::Future;
+
 use arpy::{FnRemote, RpcClient};
 use async_trait::async_trait;
 use bincode::Options;
 use futures::{SinkExt, StreamExt};
-use reqwasm::websocket::{futures::WebSocket, Message};
+use reqwasm::websocket::{futures::WebSocket, Message, WebSocketError};
+use slotmap::{DefaultKey, SlotMap};
+use tokio::{
+    select,
+    sync::{
+        mpsc::{self, UnboundedSender},
+        oneshot,
+    },
+};
+use wasm_bindgen_futures::spawn_local;
 
 use crate::Error;
 
@@ -16,12 +27,56 @@ use crate::Error;
 /// ```
 #[doc = include_doc::function_body!("tests/doc.rs", websocket_client, [my_app, MyAdd])]
 /// ```
-pub struct Connection(WebSocket);
+pub struct Connection(UnboundedSender<SendMsg>);
 
 impl Connection {
     /// Constructor.
     pub fn new(ws: WebSocket) -> Self {
-        Self(ws)
+        let (send, to_send) = mpsc::unbounded_channel::<SendMsg>();
+        let mut bg_ws = BackgroundWebsocket {
+            ws,
+            to_send,
+            msg_ids: SlotMap::new(),
+        };
+
+        spawn_local(async move { bg_ws.run().await.unwrap() });
+
+        Self(send)
+    }
+
+    pub async fn close(self) {
+        self.0.send(SendMsg::Close).unwrap_or(());
+    }
+
+    // TODO: Doc
+    // TODO: Tests
+    // TODO: `fn send` to send a fire and forget message
+    // TODO: `fn subscribe`
+    pub async fn async_call<Args>(
+        &'_ self,
+        args: Args,
+    ) -> Result<impl Future<Output = Result<Args::Output, Error>> + '_, Error>
+    where
+        Args: FnRemote,
+    {
+        let mut msg = Vec::new();
+        let serializer = bincode::DefaultOptions::new();
+        serializer
+            .serialize_into(&mut msg, Args::ID.as_bytes())
+            .unwrap();
+        serializer.serialize_into(&mut msg, &args).unwrap();
+        let (notify, recv) = oneshot::channel();
+
+        self.0
+            .send(SendMsg::Msg { msg, notify })
+            .map_err(Error::send)?;
+
+        Ok(async move {
+            let reply = recv.await.map_err(Error::receive)?;
+            serializer
+                .deserialize_from(&reply.message[reply.payload_offset..])
+                .map_err(Error::deserialize_result)
+        })
     }
 }
 
@@ -33,31 +88,85 @@ impl RpcClient for Connection {
     where
         Args: FnRemote,
     {
-        let mut body = Vec::new();
-        let serializer = bincode::DefaultOptions::new();
-        serializer
-            .serialize_into(&mut body, Args::ID.as_bytes())
-            .unwrap();
-        serializer.serialize_into(&mut body, &args).unwrap();
-
-        self.0
-            .send(Message::Bytes(body))
-            .await
-            .map_err(|e| Error::Send(e.to_string()))?;
-
-        let result = if let Some(result) = self.0.next().await {
-            result.map_err(Error::receive)?
-        } else {
-            Err(Error::receive("End of stream"))?
-        };
-
-        let result: Args::Output = match result {
-            Message::Text(_) => Err(Error::deserialize_result("Unexpected text result"))?,
-            Message::Bytes(bytes) => serializer
-                .deserialize_from(bytes.as_slice())
-                .map_err(Error::deserialize_result)?,
-        };
-
-        Ok(result)
+        self.async_call(args).await?.await
     }
+}
+
+// TODO: Use bounded or unbounded?
+struct BackgroundWebsocket {
+    ws: WebSocket,
+    to_send: mpsc::UnboundedReceiver<SendMsg>,
+    msg_ids: SlotMap<DefaultKey, oneshot::Sender<ReceiveMsg>>,
+}
+
+impl BackgroundWebsocket {
+    async fn run(&mut self) -> Result<(), Error> {
+        while select! {
+            incoming = self.ws.next() => self.receive(incoming).await?,
+            outgoing = self.to_send.recv() => self.send(outgoing).await?
+        } {}
+
+        Ok(())
+    }
+
+    async fn receive(
+        &mut self,
+        msg: Option<Result<Message, WebSocketError>>,
+    ) -> Result<bool, Error> {
+        let Some(msg) = msg else { return Ok(false) };
+
+        match msg.map_err(Error::receive)? {
+            Message::Text(_) => return Err(Error::receive("Text messages are unsupported")),
+            Message::Bytes(message) => {
+                let serializer = bincode::DefaultOptions::new();
+                let mut reader = message.as_slice();
+                let id: DefaultKey = serializer
+                    .deserialize_from(&mut reader)
+                    .map_err(Error::deserialize_result)?;
+                let Some(notifier) = self.msg_ids.remove(id)
+                else { return  Err(Error::deserialize_result("Unknown message id")); };
+                let payload_offset = message.len() - reader.len();
+                notifier
+                    .send(ReceiveMsg {
+                        payload_offset,
+                        message,
+                    })
+                    .map_err(|_| Error::receive("Unable to send message to client"))?;
+            }
+        }
+
+        Ok(true)
+    }
+
+    async fn send(&mut self, msg: Option<SendMsg>) -> Result<bool, Error> {
+        let Some(msg) = msg else { return Ok(false) };
+
+        match msg {
+            SendMsg::Close => todo!(),
+            SendMsg::Msg { mut msg, notify } => {
+                let serializer = bincode::DefaultOptions::new();
+                let key = self.msg_ids.insert(notify);
+                serializer.serialize_into(&mut msg, &key).unwrap();
+                self.ws
+                    .send(Message::Bytes(msg))
+                    .await
+                    .map_err(Error::send)?;
+            }
+        }
+
+        Ok(true)
+    }
+}
+
+enum SendMsg {
+    Close,
+    Msg {
+        msg: Vec<u8>,
+        notify: oneshot::Sender<ReceiveMsg>,
+    },
+}
+
+struct ReceiveMsg {
+    payload_offset: usize,
+    message: Vec<u8>,
 }

@@ -7,6 +7,7 @@ use std::{collections::HashMap, io, result, sync::Arc};
 use arpy::FnRemote;
 use bincode::Options;
 use futures::future::BoxFuture;
+use slotmap::DefaultKey;
 use thiserror::Error;
 
 use crate::FnRemoteBody;
@@ -37,17 +38,21 @@ impl WebSocketRouter {
         self
     }
 
-    async fn run<F, FSig>(f: Arc<F>, input: impl io::Read) -> Result<Vec<u8>>
+    async fn run<F, FSig>(f: Arc<F>, mut input: impl io::Read) -> Result<Vec<u8>>
     where
         F: FnRemoteBody<FSig> + Send + Sync + 'static,
         FSig: FnRemote + Send + Sync + 'static,
     {
         let serializer = bincode::DefaultOptions::new();
         let args: FSig = serializer
-            .deserialize_from(input)
+            .deserialize_from(&mut input)
+            .map_err(Error::Deserialization)?;
+        let id: DefaultKey = serializer
+            .deserialize_from(&mut input)
             .map_err(Error::Deserialization)?;
         let result = f.run(args).await;
         let mut body = Vec::new();
+        serializer.serialize_into(&mut body, &id).unwrap();
         serializer.serialize_into(&mut body, &result).unwrap();
 
         Ok(body)
