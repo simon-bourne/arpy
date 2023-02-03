@@ -1,6 +1,6 @@
 use std::{future::Future, net::SocketAddr};
 
-use arpy::{FnRemote, FnTryClient};
+use arpy::{FnRemote, FnTryRemote};
 use arpy_reqwest::Connection;
 use arpy_test::{server::dev_server, Add, TryMultiply};
 use reqwest::Client;

@@ -54,7 +54,7 @@ pub trait FnRemote: id::RpcId + Serialize + DeserializeOwned + Debug {
 ///
 /// A blanket implementation is provided for any `T: FnRemote`.
 #[async_trait(?Send)]
-pub trait FnTryClient<Success, Error>: FnRemote<Output = Result<Success, Error>> {
+pub trait FnTryRemote<Success, Error>: FnRemote<Output = Result<Success, Error>> {
     /// The default implementation defers to [`RpcClient::try_call`].
     ///
     /// You shouldn't need to implement this.
@@ -79,7 +79,7 @@ pub trait FnTryClient<Success, Error>: FnRemote<Output = Result<Success, Error>>
     }
 }
 
-impl<Success, Error, T> FnTryClient<Success, Error> for T where
+impl<Success, Error, T> FnTryRemote<Success, Error> for T where
     T: FnRemote<Output = Result<Success, Error>>
 {
 }
