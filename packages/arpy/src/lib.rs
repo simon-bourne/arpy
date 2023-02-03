@@ -43,6 +43,16 @@ pub trait FnClient: FnRemote {
     {
         connection.call(self).await
     }
+
+    /// The default implementation defers to [`AsyncRpcClient::call_async`].
+    ///
+    /// You shouldn't need to implement this.
+    async fn call_async<C>(self, connection: &C) -> Result<C::Call<Self::Output>, C::Error>
+    where
+        C: AsyncRpcClient,
+    {
+        connection.call_async(self).await
+    }
 }
 
 impl<T: FnRemote> FnClient for T {}
@@ -60,6 +70,19 @@ pub trait FnTryClient<Success, Error>: FnRemote<Output = Result<Success, Error>>
         C: RpcClient,
     {
         connection.try_call(self).await
+    }
+
+    /// The default implementation defers to [`AsyncRpcClient::try_call_async`].
+    ///
+    /// You shouldn't need to implement this.
+    async fn try_call_async<C>(self, connection: &C) -> Result<TryCall<Success, Error, C>, C::Error>
+    where
+        Self: Sized,
+        Success: DeserializeOwned,
+        Error: DeserializeOwned,
+        C: AsyncRpcClient,
+    {
+        connection.try_call_async(self).await
     }
 }
 
@@ -159,42 +182,6 @@ where
             Poll::Pending => Poll::Pending,
         }
     }
-}
-
-#[async_trait(?Send)]
-pub trait FnAsyncClient: FnRemote {
-    /// The default implementation defers to [`AsyncRpcClient::call_async`].
-    ///
-    /// You shouldn't need to implement this.
-    async fn call_async<C>(self, connection: &C) -> Result<C::Call<Self::Output>, C::Error>
-    where
-        C: AsyncRpcClient,
-    {
-        connection.call_async(self).await
-    }
-}
-
-impl<T: FnRemote> FnAsyncClient for T {}
-
-#[async_trait(?Send)]
-pub trait FnAsyncTryClient<Success, Error>: FnRemote<Output = Result<Success, Error>> {
-    /// The default implementation defers to [`AsyncRpcClient::try_call_async`].
-    ///
-    /// You shouldn't need to implement this.
-    async fn try_call_async<C>(self, connection: &C) -> Result<TryCall<Success, Error, C>, C::Error>
-    where
-        Self: Sized,
-        Success: DeserializeOwned,
-        Error: DeserializeOwned,
-        C: AsyncRpcClient,
-    {
-        connection.try_call_async(self).await
-    }
-}
-
-impl<Success, Error, T> FnAsyncTryClient<Success, Error> for T where
-    T: FnRemote<Output = Result<Success, Error>>
-{
 }
 
 pub trait Subscription: id::RpcId + Serialize + DeserializeOwned + Debug {
