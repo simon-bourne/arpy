@@ -117,7 +117,7 @@ pub trait AsyncRpcClient {
     async fn try_call_async<F, Success, Error>(
         &self,
         function: F,
-    ) -> Result<TryCall<Success, Error, Self::Error, Self::Call<Result<Success, Error>>>, Self::Error>
+    ) -> Result<TryCall<Success, Error, Self>, Self::Error>
     where
         Self: Sized,
         F: FnRemote<Output = Result<Success, Error>>,
@@ -131,21 +131,23 @@ pub trait AsyncRpcClient {
 }
 
 #[pin_project]
-pub struct TryCall<Success, Error, TransportError, Call>
+pub struct TryCall<Success, Error, Client>
 where
-    Call: Future<Output = Result<Result<Success, Error>, TransportError>>,
-{
-    #[pin]
-    call: Call,
-}
-
-impl<Success, TransportError, Error, Call> Future for TryCall<Success, Error, TransportError, Call>
-where
-    Call: Future<Output = Result<Result<Success, Error>, TransportError>>,
     Success: DeserializeOwned,
     Error: DeserializeOwned,
+    Client: AsyncRpcClient,
 {
-    type Output = Result<Success, ErrorFrom<TransportError, Error>>;
+    #[pin]
+    call: Client::Call<Result<Success, Error>>,
+}
+
+impl<Success, Error, Client> Future for TryCall<Success, Error, Client>
+where
+    Success: DeserializeOwned,
+    Error: DeserializeOwned,
+    Client: AsyncRpcClient,
+{
+    type Output = Result<Success, ErrorFrom<Client::Error, Error>>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         match self.project().call.poll(cx) {
@@ -179,10 +181,7 @@ pub trait FnAsyncTryClient<Success, Error>: FnRemote<Output = Result<Success, Er
     /// The default implementation defers to [`RpcClient::try_call`].
     ///
     /// You shouldn't need to implement this.
-    async fn try_call_async<C>(
-        self,
-        connection: &C,
-    ) -> Result<TryCall<Success, Error, C::Error, C::Call<Result<Success, Error>>>, C::Error>
+    async fn try_call_async<C>(self, connection: &C) -> Result<TryCall<Success, Error, C>, C::Error>
     where
         Self: Sized,
         Success: DeserializeOwned,
