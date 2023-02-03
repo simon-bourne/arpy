@@ -39,12 +39,13 @@ pub trait FnRemote: id::RpcId + Serialize + DeserializeOwned + Debug {
         connection.call(self).await
     }
 
-    /// The default implementation defers to [`AsyncRpcClient::call_async`].
+    /// The default implementation defers to
+    /// [`ConcurrentRpcClient::call_async`].
     ///
     /// You shouldn't need to implement this.
     async fn call_async<C>(self, connection: &C) -> Result<C::Call<Self::Output>, C::Error>
     where
-        C: AsyncRpcClient,
+        C: ConcurrentRpcClient,
     {
         connection.call_async(self).await
     }
@@ -65,7 +66,8 @@ pub trait FnTryRemote<Success, Error>: FnRemote<Output = Result<Success, Error>>
         connection.try_call(self).await
     }
 
-    /// The default implementation defers to [`AsyncRpcClient::try_call_async`].
+    /// The default implementation defers to
+    /// [`ConcurrentRpcClient::try_call_async`].
     ///
     /// You shouldn't need to implement this.
     async fn try_call_async<C>(self, connection: &C) -> Result<TryCall<Success, Error, C>, C::Error>
@@ -73,7 +75,7 @@ pub trait FnTryRemote<Success, Error>: FnRemote<Output = Result<Success, Error>>
         Self: Sized,
         Success: DeserializeOwned,
         Error: DeserializeOwned,
-        C: AsyncRpcClient,
+        C: ConcurrentRpcClient,
     {
         connection.try_call_async(self).await
     }
@@ -121,7 +123,7 @@ pub trait RpcClient {
 }
 
 #[async_trait(?Send)]
-pub trait AsyncRpcClient {
+pub trait ConcurrentRpcClient {
     /// A transport error
     type Error: Error + Debug + Send + Sync + 'static;
     type Call<Output: DeserializeOwned>: Future<Output = Result<Output, Self::Error>>;
@@ -151,7 +153,7 @@ pub struct TryCall<Success, Error, Client>
 where
     Success: DeserializeOwned,
     Error: DeserializeOwned,
-    Client: AsyncRpcClient,
+    Client: ConcurrentRpcClient,
 {
     #[pin]
     call: Client::Call<Result<Success, Error>>,
@@ -161,7 +163,7 @@ impl<Success, Error, Client> Future for TryCall<Success, Error, Client>
 where
     Success: DeserializeOwned,
     Error: DeserializeOwned,
-    Client: AsyncRpcClient,
+    Client: ConcurrentRpcClient,
 {
     type Output = Result<Success, ErrorFrom<Client::Error, Error>>;
 

@@ -8,7 +8,7 @@ use std::{
     task::{Context, Poll},
 };
 
-use arpy::{AsyncRpcClient, FnRemote, RpcClient};
+use arpy::{ConcurrentRpcClient, FnRemote, RpcClient};
 use async_trait::async_trait;
 use bincode::Options;
 use futures::{SinkExt, StreamExt};
@@ -60,7 +60,7 @@ impl Connection {
 }
 
 #[async_trait(?Send)]
-impl AsyncRpcClient for Connection {
+impl ConcurrentRpcClient for Connection {
     type Call<Output: DeserializeOwned> = Call<Output>;
     type Error = Error;
 
