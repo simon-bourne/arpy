@@ -30,7 +30,7 @@ pub trait FnClient: FnRemote {
     /// The default implementation defers to [`RpcClient::call`].
     ///
     /// You shouldn't need to implement this.
-    async fn call<C>(self, connection: &mut C) -> Result<Self::Output, C::Error>
+    async fn call<C>(self, connection: &C) -> Result<Self::Output, C::Error>
     where
         C: RpcClient,
     {
@@ -73,7 +73,7 @@ pub trait RpcClient {
     type Error: Error + Debug + Send + Sync + 'static;
 
     /// Make an RPC call.
-    async fn call<F>(&mut self, function: F) -> Result<F::Output, Self::Error>
+    async fn call<F>(&self, function: F) -> Result<F::Output, Self::Error>
     where
         F: FnRemote;
 

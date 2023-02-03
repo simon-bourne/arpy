@@ -9,17 +9,17 @@ wasm_bindgen_test_configure!(run_in_browser);
 
 #[wasm_bindgen_test]
 async fn simple_http() {
-    let mut connection = http::Connection::new(&server_url("http", "http"));
+    let connection = http::Connection::new(&server_url("http", "http"));
 
-    assert_eq!(3, Add(1, 2).call(&mut connection).await.unwrap());
+    assert_eq!(3, Add(1, 2).call(&connection).await.unwrap());
 }
 
 #[wasm_bindgen_test]
 async fn simple_websocket() {
     let ws = WebSocket::open(&server_url("ws", "ws")).unwrap();
-    let mut connection = websocket::Connection::new(ws);
+    let connection = websocket::Connection::new(ws);
 
-    assert_eq!(3, Add(1, 2).call(&mut connection).await.unwrap());
+    assert_eq!(3, Add(1, 2).call(&connection).await.unwrap());
 }
 
 #[wasm_bindgen_test]
