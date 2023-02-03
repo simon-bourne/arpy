@@ -4,7 +4,7 @@ use std::{
     task::{self, Poll},
 };
 
-use arpy::SubscriptionClient;
+use arpy::ServerSentEvents;
 use async_trait::async_trait;
 use futures::Stream;
 use gloo_net::eventsource::futures::{EventSource, EventSourceSubscription};
@@ -23,7 +23,7 @@ impl Connection {
 }
 
 #[async_trait(?Send)]
-impl SubscriptionClient for Connection {
+impl ServerSentEvents for Connection {
     type Error = Error;
     type Output<Item: DeserializeOwned> = SubscriptionMessage<Item>;
 

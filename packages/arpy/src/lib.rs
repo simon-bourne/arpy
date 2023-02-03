@@ -222,12 +222,8 @@ where
     }
 }
 
-pub trait Subscription: id::RpcId + Serialize + DeserializeOwned + Debug {
-    type Output: Serialize + DeserializeOwned + Debug;
-}
-
 #[async_trait(?Send)]
-pub trait SubscriptionClient {
+pub trait ServerSentEvents {
     /// A transport error
     type Error: Error + Debug + Send + Sync + 'static;
     type Output<Item: DeserializeOwned>: Stream<Item = Result<Item, Self::Error>>;
