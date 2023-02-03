@@ -9,15 +9,21 @@
 //! ```
 use std::sync::Arc;
 
-use arpy::FnRemote;
+use arpy::{id, FnRemote};
 use arpy_server::{FnRemoteBody, WebSocketRouter};
 use axum::{
     extract::{ws::WebSocket, WebSocketUpgrade},
+    response::{
+        sse::{Event, KeepAlive},
+        Sse,
+    },
     routing::{get, post},
-    Router,
+    BoxError, Router,
 };
+use futures::{Stream, StreamExt};
 use http::ArpyRequest;
 use hyper::HeaderMap;
+use serde::Serialize;
 use websocket::WebSocketHandler;
 
 pub mod http;
@@ -37,6 +43,18 @@ pub trait RpcRoute {
 
     /// Add all the RPC endpoints in `router` to a websocket endpoint at `path`.
     fn ws_rpc_route(self, path: &str, router: WebSocketRouter) -> Self;
+
+    /// Add a Server Sent Events route.
+    fn sse_route<T, S, Error>(
+        self,
+        path: &str,
+        events: impl FnMut() -> S + Send + Clone + 'static,
+        keep_alive: Option<KeepAlive>,
+    ) -> Self
+    where
+        T: Serialize + id::RpcId + 'static,
+        S: Stream<Item = Result<T, Error>> + Send + 'static,
+        Error: Into<BoxError> + 'static;
 }
 
 impl RpcRoute for Router {
@@ -65,4 +83,42 @@ impl RpcRoute for Router {
             }),
         )
     }
+
+    /// Add an SSE route using [`sse_handler`].
+    fn sse_route<T, S, Error>(
+        self,
+        path: &str,
+        mut events: impl FnMut() -> S + Send + Clone + 'static,
+        keep_alive: Option<KeepAlive>,
+    ) -> Self
+    where
+        T: Serialize + id::RpcId + 'static,
+        S: Stream<Item = Result<T, Error>> + Send + 'static,
+        Error: Into<BoxError> + 'static,
+    {
+        self.route(
+            path,
+            get(|| async move {
+                let sse = sse_handler(events()).await;
+
+                if let Some(keep_alive) = keep_alive {
+                    sse.keep_alive(keep_alive)
+                } else {
+                    sse
+                }
+            }),
+        )
+    }
+}
+
+/// SSE Handler.
+///
+/// This uses `serde_json` to serialize data, and assumes it can't fail. See
+/// [`serde_json::to_writer`] for more details.
+pub async fn sse_handler<T: Serialize + id::RpcId, Error: Into<BoxError>>(
+    events: impl Stream<Item = Result<T, Error>> + Send + 'static,
+) -> Sse<impl Stream<Item = Result<Event, Error>>> {
+    Sse::new(
+        events.map(|item| item.map(|item| Event::default().event(T::ID).json_data(item).unwrap())),
+    )
 }
