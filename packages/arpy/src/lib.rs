@@ -116,8 +116,8 @@ pub trait RpcClient {
     {
         match self.call(function).await {
             Ok(Ok(ok)) => Ok(ok),
-            Ok(Err(e)) => Err(ErrorFrom::Server(e)),
-            Err(e) => Err(ErrorFrom::Connection(e)),
+            Ok(Err(e)) => Err(ErrorFrom::Application(e)),
+            Err(e) => Err(ErrorFrom::Transport(e)),
         }
     }
 }
@@ -214,8 +214,8 @@ where
         match self.project().call.poll(cx) {
             Poll::Ready(reply) => Poll::Ready(match reply {
                 Ok(Ok(ok)) => Ok(ok),
-                Ok(Err(e)) => Err(ErrorFrom::Server(e)),
-                Err(e) => Err(ErrorFrom::Connection(e)),
+                Ok(Err(e)) => Err(ErrorFrom::Application(e)),
+                Err(e) => Err(ErrorFrom::Transport(e)),
             }),
             Poll::Pending => Poll::Pending,
         }
@@ -243,11 +243,11 @@ pub trait SubscriptionClient {
 #[derive(Error, Debug)]
 pub enum ErrorFrom<C, S> {
     /// A transport error.
-    #[error("Connection: {0}")]
-    Connection(C),
+    #[error("Transport: {0}")]
+    Transport(C),
     /// An error from `FnRemote::Output`.
-    #[error("Server: {0}")]
-    Server(S),
+    #[error("Application: {0}")]
+    Application(S),
 }
 
 /// Uniquely identify an RPC call.
