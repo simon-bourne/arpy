@@ -9,7 +9,7 @@ use std::{error::Error, fmt::Debug, str::FromStr};
 /// It will use the kebab cased type name without any generics or module path.
 pub use arpy_macros::RpcId;
 use async_trait::async_trait;
-use futures::Stream;
+use futures::{Future, Stream};
 use serde::{de::DeserializeOwned, Serialize};
 use thiserror::Error;
 
@@ -96,6 +96,32 @@ pub trait RpcClient {
         }
     }
 }
+
+#[async_trait(?Send)]
+pub trait AsyncRpcClient {
+    /// A transport error
+    type Error: Error + Debug + Send + Sync + 'static;
+    type Call<Output: DeserializeOwned>: Future<Output = Result<Output, Self::Error>>;
+
+    async fn call_async<F>(&self, function: F) -> Result<Self::Call<F::Output>, Self::Error>
+    where
+        F: FnRemote;
+}
+
+#[async_trait(?Send)]
+pub trait FnAsyncClient: FnRemote {
+    /// The default implementation defers to [`RpcClient::call`].
+    ///
+    /// You shouldn't need to implement this.
+    async fn call_async<C>(self, connection: &C) -> Result<C::Call<Self::Output>, C::Error>
+    where
+        C: AsyncRpcClient,
+    {
+        connection.call_async(self).await
+    }
+}
+
+impl<T: FnRemote> FnAsyncClient for T {}
 
 pub trait Subscription: id::RpcId + Serialize + DeserializeOwned + Debug {
     type Output: Serialize + DeserializeOwned + Debug;

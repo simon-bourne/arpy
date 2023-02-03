@@ -1,5 +1,5 @@
 //! These tests are run from `provide_server`
-use arpy::FnClient;
+use arpy::{FnAsyncClient, FnClient};
 use arpy_reqwasm::{http, websocket};
 use arpy_test::{Add, PORT};
 use reqwasm::websocket::futures::WebSocket;
@@ -27,8 +27,8 @@ async fn out_of_order_websocket() {
     let ws = WebSocket::open(&server_url("ws", "ws")).unwrap();
     let connection = websocket::Connection::new(ws);
 
-    let result1 = connection.async_call(Add(1, 2)).await.unwrap();
-    let result2 = connection.async_call(Add(3, 4)).await.unwrap();
+    let result1 = Add(1, 2).call_async(&connection).await.unwrap();
+    let result2 = Add(3, 4).call_async(&connection).await.unwrap();
 
     // Await in reverse order
     assert_eq!(7, result2.await.unwrap());

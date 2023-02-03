@@ -1,13 +1,20 @@
 //! Websocket Client.
 //!
 //! See [`Connection`] for an example.
-use std::future::Future;
+use std::{
+    future::Future,
+    marker::PhantomData,
+    pin::Pin,
+    task::{Context, Poll},
+};
 
-use arpy::{FnRemote, RpcClient};
+use arpy::{AsyncRpcClient, FnRemote, RpcClient};
 use async_trait::async_trait;
 use bincode::Options;
 use futures::{SinkExt, StreamExt};
+use pin_project::pin_project;
 use reqwasm::websocket::{futures::WebSocket, Message, WebSocketError};
+use serde::de::DeserializeOwned;
 use slotmap::{DefaultKey, SlotMap};
 use tokio::{
     select,
@@ -50,36 +57,63 @@ impl Connection {
     pub async fn close(self) {
         self.0.send(SendMsg::Close).unwrap_or(());
     }
+}
+
+#[async_trait(?Send)]
+impl AsyncRpcClient for Connection {
+    type Call<Output: DeserializeOwned> = Call<Output>;
+    type Error = Error;
 
     // TODO: Doc
     // TODO: Tests
     // TODO: `fn send` to send a fire and forget message
     // TODO: `fn subscribe`
-    pub async fn async_call<Args>(
-        &'_ self,
-        args: Args,
-    ) -> Result<impl Future<Output = Result<Args::Output, Error>> + '_, Error>
+    async fn call_async<F>(&self, function: F) -> Result<Self::Call<F::Output>, Self::Error>
     where
-        Args: FnRemote,
+        F: FnRemote,
     {
         let mut msg = Vec::new();
         let serializer = bincode::DefaultOptions::new();
         serializer
-            .serialize_into(&mut msg, Args::ID.as_bytes())
+            .serialize_into(&mut msg, F::ID.as_bytes())
             .unwrap();
-        serializer.serialize_into(&mut msg, &args).unwrap();
+        serializer.serialize_into(&mut msg, &function).unwrap();
         let (notify, recv) = oneshot::channel();
 
         self.0
             .send(SendMsg::Msg { msg, notify })
             .map_err(Error::send)?;
 
-        Ok(async move {
-            let reply = recv.await.map_err(Error::receive)?;
-            serializer
-                .deserialize_from(&reply.message[reply.payload_offset..])
-                .map_err(Error::deserialize_result)
+        Ok(Call {
+            recv,
+            phantom: PhantomData,
         })
+    }
+}
+
+#[pin_project]
+pub struct Call<Output> {
+    #[pin]
+    recv: oneshot::Receiver<ReceiveMsg>,
+    phantom: PhantomData<Output>,
+}
+
+impl<Output: DeserializeOwned> Future for Call<Output> {
+    type Output = Result<Output, Error>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        match self.project().recv.poll(cx) {
+            Poll::Ready(reply) => {
+                let reply = reply.map_err(Error::receive)?;
+                let serializer = bincode::DefaultOptions::new();
+                Poll::Ready(
+                    serializer
+                        .deserialize_from(&reply.message[reply.payload_offset..])
+                        .map_err(Error::deserialize_result),
+                )
+            }
+            Poll::Pending => Poll::Pending,
+        }
     }
 }
 
@@ -91,7 +125,7 @@ impl RpcClient for Connection {
     where
         Args: FnRemote,
     {
-        self.async_call(args).await?.await
+        self.call_async(args).await?.await
     }
 }
 
