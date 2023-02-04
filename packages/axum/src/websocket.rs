@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
 use anyhow::bail;
-use arpy_server::WebSocketRouter;
+use arpy_server::{websocket, WebSocketRouter};
 use axum::extract::ws::{Message, WebSocket};
+use tokio::{select, spawn, sync::mpsc};
 
 #[derive(Clone)]
 pub struct WebSocketHandler(Arc<arpy_server::WebSocketHandler>);
@@ -19,17 +20,40 @@ impl WebSocketHandler {
     }
 
     async fn try_handle_socket(&self, mut socket: WebSocket) -> anyhow::Result<()> {
-        while let Some(msg) = socket.recv().await {
-            match msg? {
-                Message::Text(_) => bail!("Text message type is unsupported"),
-                Message::Binary(params) => {
-                    let output = self.0.handle_msg(&params).await?;
-                    socket.send(Message::Binary(output)).await?;
+        let (send, mut recv) = mpsc::channel(1000);
+
+        loop {
+            select! {
+                incoming = socket.recv() => {
+                    let Some(incoming) = incoming else { break; };
+                    self.handle_incoming(incoming?, &send)?;
+                },
+                outgoing = recv.recv() => {
+                    // If we're receiving bad messages, we want to abort and close the websocket.
+                    let outgoing = outgoing.unwrap()?;
+                    socket.send(Message::Binary(outgoing)).await?;
                 }
-                Message::Ping(_) => (),
-                Message::Pong(_) => (),
-                Message::Close(_) => return Ok(()),
             }
+        }
+
+        Ok(())
+    }
+
+    fn handle_incoming(
+        &self,
+        msg: Message,
+        send: &mpsc::Sender<websocket::Result<Vec<u8>>>,
+    ) -> anyhow::Result<()> {
+        match msg {
+            Message::Text(_) => bail!("Text message type is unsupported"),
+            Message::Binary(params) => {
+                let send = send.clone();
+                let handler = self.0.clone();
+                spawn(async move { send.send(handler.handle_msg(&params).await).await.unwrap() });
+            }
+            Message::Ping(_) => (),
+            Message::Pong(_) => (),
+            Message::Close(_) => return Ok(()),
         }
 
         Ok(())

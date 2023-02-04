@@ -1,9 +1,9 @@
-mod websocket;
-
 use std::future::Future;
 
 use arpy::FnRemote;
 pub use websocket::{WebSocketHandler, WebSocketRouter};
+
+pub mod websocket;
 
 /// An implementation of a remote function.
 ///
