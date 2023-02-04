@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{ops::ControlFlow, sync::Arc};
 
 use anyhow::bail;
 use arpy_server::{websocket, WebSocketRouter};
@@ -19,43 +19,58 @@ impl WebSocketHandler {
         }
     }
 
+    // TODO: Factor out `try_handle_socket`
     async fn try_handle_socket(&self, mut socket: WebSocket) -> anyhow::Result<()> {
-        let (send, mut recv) = mpsc::channel(1000);
+        let (send, mut recv) = mpsc::unbounded_channel();
 
         loop {
+            // TODO: Check a semaphore to see if we can handle more incoming messages,
+            // otherwise just `recv.recv().await ... `
             select! {
                 incoming = socket.recv() => {
-                    let Some(incoming) = incoming else { break; };
-                    self.handle_incoming(incoming?, &send)?;
+                    if self.handle_incoming(incoming, &send)?.is_break() {
+                        break;
+                    }
                 },
-                outgoing = recv.recv() => {
-                    // If we're receiving bad messages, we want to abort and close the websocket.
-                    let outgoing = outgoing.unwrap()?;
-                    socket.send(Message::Binary(outgoing)).await?;
-                }
+                outgoing = recv.recv() => Self::handle_outgoing(&mut socket, outgoing).await?
             }
         }
 
         Ok(())
     }
 
+    async fn handle_outgoing(
+        socket: &mut WebSocket,
+        outgoing: Option<websocket::Result<Vec<u8>>>,
+    ) -> anyhow::Result<()> {
+        let outgoing = outgoing.unwrap();
+
+        // If we're receiving bad messages, we want to abort and close the websocket.
+        let outgoing = outgoing?;
+        socket.send(Message::Binary(outgoing)).await?;
+
+        Ok(())
+    }
+
     fn handle_incoming(
         &self,
-        msg: Message,
-        send: &mpsc::Sender<websocket::Result<Vec<u8>>>,
-    ) -> anyhow::Result<()> {
-        match msg {
+        msg: Option<Result<Message, axum::Error>>,
+        send: &mpsc::UnboundedSender<websocket::Result<Vec<u8>>>,
+    ) -> anyhow::Result<ControlFlow<(), ()>> {
+        let Some(msg) = msg else { return Ok(ControlFlow::Break(())) };
+
+        match msg? {
             Message::Text(_) => bail!("Text message type is unsupported"),
             Message::Binary(params) => {
                 let send = send.clone();
                 let handler = self.0.clone();
-                spawn(async move { send.send(handler.handle_msg(&params).await).await.unwrap() });
+                spawn(async move { send.send(handler.handle_msg(&params).await).unwrap() });
             }
             Message::Ping(_) => (),
             Message::Pong(_) => (),
-            Message::Close(_) => return Ok(()),
+            Message::Close(_) => return Ok(ControlFlow::Break(())),
         }
 
-        Ok(())
+        Ok(ControlFlow::Continue(()))
     }
 }
