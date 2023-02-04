@@ -2,7 +2,7 @@ use std::{future::ready, ops::ControlFlow, sync::Arc};
 
 use arpy_server::WebSocketRouter;
 use axum::extract::ws::{Message, WebSocket};
-use futures::{stream, SinkExt, StreamExt};
+use futures::{SinkExt, StreamExt};
 
 #[derive(Clone)]
 pub struct WebSocketHandler(Arc<arpy_server::WebSocketHandler>);
@@ -27,7 +27,8 @@ impl WebSocketHandler {
         if let Err(e) = self
             .0
             .handle_socket(
-                socket_sink.with_flat_map(|msg| stream::once(ready(Ok(Message::Binary(msg))))),
+                socket_sink
+                    .with(|msg| ready(Result::<Message, axum::Error>::Ok(Message::Binary(msg)))),
                 incoming,
             )
             .await
