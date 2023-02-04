@@ -23,7 +23,7 @@ impl Connection {
     /// `url` is the base url of the server, and will have [`MsgId::ID`]
     /// appended for each RPC.
     ///
-    /// [`MsgId::ID`]: arpy::id::MsgId::ID
+    /// [`MsgId::ID`]: arpy::transport::MsgId::ID
     pub fn new(url: &str) -> Self {
         Self(url.to_string())
     }

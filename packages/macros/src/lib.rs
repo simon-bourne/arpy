@@ -10,7 +10,7 @@ pub fn derive_msg_id(item: TokenStream) -> TokenStream {
     let id = ident.to_string().to_kebab_case();
 
     quote!(
-        impl ::arpy::id::MsgId for #ident {
+        impl ::arpy::transport::MsgId for #ident {
             const ID: &'static str = #id;
         }
     )

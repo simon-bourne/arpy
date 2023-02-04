@@ -44,7 +44,7 @@ impl Connection {
     /// This stores [`Client`] for connection pooling. `url` is the base url of
     /// the server, and will have [`MsgId::ID`] appended for each RPC.
     ///
-    /// [`MsgId::ID`]: arpy::id::MsgId::ID
+    /// [`MsgId::ID`]: arpy::transport::MsgId::ID
     pub fn new(client: &Client, url: impl Into<String>) -> Self {
         Self {
             client: client.clone(),
