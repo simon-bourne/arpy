@@ -5,15 +5,15 @@
 [![Documentation](https://docs.rs/arpy/badge.svg)](https://docs.rs/arpy)
 [![MIT/Apache-2 licensed](https://img.shields.io/crates/l/arpy)](./LICENSE-APACHE)
 
-Define your RPC function signatures and use them with various client/server implementations.
+Define your RPC signatures, and use them with various client/server implementations.
 
 ## Transport Implementations
 
-There are client implementations for [Reqwest] and [Reqwasm], and server implementations for [Axum] and [Actix].
+[Reqwest] and [Reqwasm] clients are available, along with [Axum] and [Actix] servers.
 
 ## Usage
 
-Define your RPC signatures, implement them on the server and call them on the client. These can be in separate crates, or all lumped into one depending on your workflow.
+Define your RPC signatures, implement them on the server, and call them on the client. These can be in separate crates, or all in one depending on your workflow.
 
 ### Defining RPC Signatures
 
@@ -35,7 +35,7 @@ impl FnRemote for TryMultiply {
 
 ### Implementing a Server
 
-We use [Axum] for this example.
+Example using [Axum]:
 
 ```rust
 async fn add(args: &Add) -> i32 {
@@ -58,7 +58,7 @@ Server::bind(&SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 9090))
 
 ### Calling Remote Procedures
 
-We use [Reqwasm] for this example:
+Example using [Reqwasm]:
 
 ```rust
 let connection = http::Connection::new(&format!("http://127.0.0.1:9090/api"));
