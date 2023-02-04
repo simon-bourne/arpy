@@ -154,6 +154,9 @@ impl BackgroundWebsocket {
             Message::Bytes(message) => {
                 let serializer = bincode::DefaultOptions::new();
                 let mut reader = message.as_slice();
+
+                // TODO: Add functions to serialize/deserialize Id (with protocol version
+                // check)? TODO: Add a protocol version check
                 let id: DefaultKey = serializer
                     .deserialize_from(&mut reader)
                     .map_err(Error::deserialize_result)?;
