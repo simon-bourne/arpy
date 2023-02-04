@@ -6,14 +6,14 @@ use std::{collections::HashMap, error, io, mem, result, sync::Arc};
 
 use arpy::FnRemote;
 use bincode::Options;
-use futures::{future::BoxFuture, stream_select, Sink, SinkExt, Stream};
+use futures::{future::BoxFuture, stream_select, Sink, SinkExt, Stream, StreamExt};
 use slotmap::DefaultKey;
 use thiserror::Error;
 use tokio::{
     spawn,
     sync::{mpsc, Semaphore, SemaphorePermit},
 };
-use tokio_stream::{wrappers::UnboundedReceiverStream, StreamExt};
+use tokio_stream::wrappers::UnboundedReceiverStream;
 
 use crate::FnRemoteBody;
 
