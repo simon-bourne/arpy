@@ -1,76 +1,61 @@
-use std::{ops::ControlFlow, sync::Arc};
+use std::{future::ready, ops::ControlFlow, sync::Arc};
 
-use anyhow::bail;
-use arpy_server::{websocket, WebSocketRouter};
+use arpy_server::WebSocketRouter;
 use axum::extract::ws::{Message, WebSocket};
-use tokio::{select, spawn, sync::mpsc};
+use futures::{stream, SinkExt, StreamExt};
 
 #[derive(Clone)]
 pub struct WebSocketHandler(Arc<arpy_server::WebSocketHandler>);
 
 impl WebSocketHandler {
     pub fn new(router: WebSocketRouter) -> Self {
-        Self(Arc::new(arpy_server::WebSocketHandler::new(router)))
+        Self(arpy_server::WebSocketHandler::new(router))
     }
 
     pub async fn handle_socket(&self, socket: WebSocket) {
-        if let Err(e) = self.try_handle_socket(socket).await {
+        let (socket_sink, socket_stream) = socket.split();
+        let incoming = socket_stream
+            .filter_map(Self::handle_incoming)
+            .take_while(|msg| ready(msg.is_continue()))
+            .filter_map(|msg| {
+                ready(match msg {
+                    ControlFlow::Continue(msg) => Some(msg),
+                    ControlFlow::Break(()) => None,
+                })
+            });
+
+        if let Err(e) = self
+            .0
+            .handle_socket(
+                socket_sink.with_flat_map(|msg| stream::once(ready(Ok(Message::Binary(msg))))),
+                incoming,
+            )
+            .await
+        {
             tracing::error!("Error on WebSocket: {e}");
         }
     }
 
-    // TODO: Factor out `try_handle_socket`
-    async fn try_handle_socket(&self, mut socket: WebSocket) -> anyhow::Result<()> {
-        let (send, mut recv) = mpsc::unbounded_channel();
-
-        loop {
-            // TODO: Check a semaphore to see if we can handle more incoming messages,
-            // otherwise just `recv.recv().await ... `
-            select! {
-                incoming = socket.recv() => {
-                    if self.handle_incoming(incoming, &send)?.is_break() {
-                        break;
-                    }
-                },
-                outgoing = recv.recv() => Self::handle_outgoing(&mut socket, outgoing).await?
+    async fn handle_incoming(
+        msg: Result<Message, axum::Error>,
+    ) -> Option<ControlFlow<(), Vec<u8>>> {
+        let msg = match msg {
+            Ok(msg) => msg,
+            Err(e) => {
+                tracing::error!("Error on WebSocket: {e}");
+                return Some(ControlFlow::Break(()));
             }
-        }
+        };
 
-        Ok(())
-    }
-
-    async fn handle_outgoing(
-        socket: &mut WebSocket,
-        outgoing: Option<websocket::Result<Vec<u8>>>,
-    ) -> anyhow::Result<()> {
-        let outgoing = outgoing.unwrap();
-
-        // If we're receiving bad messages, we want to abort and close the websocket.
-        let outgoing = outgoing?;
-        socket.send(Message::Binary(outgoing)).await?;
-
-        Ok(())
-    }
-
-    fn handle_incoming(
-        &self,
-        msg: Option<Result<Message, axum::Error>>,
-        send: &mpsc::UnboundedSender<websocket::Result<Vec<u8>>>,
-    ) -> anyhow::Result<ControlFlow<(), ()>> {
-        let Some(msg) = msg else { return Ok(ControlFlow::Break(())) };
-
-        match msg? {
-            Message::Text(_) => bail!("Text message type is unsupported"),
-            Message::Binary(params) => {
-                let send = send.clone();
-                let handler = self.0.clone();
-                spawn(async move { send.send(handler.handle_msg(&params).await).unwrap() });
+        match msg {
+            Message::Text(_) => {
+                tracing::error!("Text message type is unsupported");
+                Some(ControlFlow::Break(()))
             }
-            Message::Ping(_) => (),
-            Message::Pong(_) => (),
-            Message::Close(_) => return Ok(ControlFlow::Break(())),
+            Message::Binary(params) => Some(ControlFlow::Continue(params)),
+            Message::Ping(_) => None,
+            Message::Pong(_) => None,
+            Message::Close(_) => Some(ControlFlow::Break(())),
         }
-
-        Ok(ControlFlow::Continue(()))
     }
 }

@@ -11,7 +11,7 @@ pub struct WebSocketHandler(Arc<arpy_server::WebSocketHandler>);
 
 impl WebSocketHandler {
     pub fn new(handler: WebSocketRouter) -> Self {
-        Self(Arc::new(arpy_server::WebSocketHandler::new(handler)))
+        Self(arpy_server::WebSocketHandler::new(handler))
     }
 
     pub async fn handle(

@@ -2,13 +2,18 @@
 //!
 //! See the `axum` and `actix` implementations under `packages` in the
 //! repository.
-use std::{collections::HashMap, io, result, sync::Arc};
+use std::{collections::HashMap, error, io, mem, result, sync::Arc};
 
 use arpy::FnRemote;
 use bincode::Options;
-use futures::future::BoxFuture;
+use futures::{future::BoxFuture, stream_select, Sink, SinkExt, Stream};
 use slotmap::DefaultKey;
 use thiserror::Error;
+use tokio::{
+    spawn,
+    sync::{mpsc, Semaphore, SemaphorePermit},
+};
+use tokio_stream::{wrappers::UnboundedReceiverStream, StreamExt};
 
 use crate::FnRemoteBody;
 
@@ -62,13 +67,79 @@ impl WebSocketRouter {
 /// Handle raw messages from a websocket.
 ///
 /// Use `WebSocketHandler` to implement a Websocket server.
-pub struct WebSocketHandler(HashMap<Id, RpcHandler>);
+pub struct WebSocketHandler {
+    runners: HashMap<Id, RpcHandler>,
+    in_flight: Semaphore,
+}
 
 impl WebSocketHandler {
-    pub fn new(router: WebSocketRouter) -> Self {
-        Self(router.0)
+    pub fn new(router: WebSocketRouter) -> Arc<Self> {
+        // TODO: Semaphore count arg
+        Arc::new(Self {
+            runners: router.0,
+            in_flight: Semaphore::new(1000),
+        })
     }
 
+    pub async fn handle_socket<SocketSink, Incoming, Outgoing>(
+        self: &Arc<Self>,
+        mut socket_sink: SocketSink,
+        incoming: impl Stream<Item = Incoming>,
+    ) -> Result<()>
+    where
+        Incoming: AsRef<[u8]> + Send + Sync + 'static,
+        Outgoing: From<Vec<u8>>,
+        SocketSink: Sink<Outgoing> + Unpin,
+        SocketSink::Error: Send + Sync + error::Error + 'static,
+    {
+        enum Event<'a, Incoming0> {
+            Incoming {
+                in_flight_permit: SemaphorePermit<'a>,
+                msg: Incoming0,
+            },
+            Outgoing(Result<Vec<u8>>),
+        }
+
+        // Get the in-flight permit on the message stream, so we block the stream until
+        // we have a permit.
+        let incoming = incoming.then(|msg| async {
+            Event::Incoming {
+                in_flight_permit: self.in_flight.acquire().await.unwrap(),
+                msg,
+            }
+        });
+
+        let (pending_runs, completed_runs) = mpsc::unbounded_channel::<Result<Vec<u8>>>();
+        let outgoing = UnboundedReceiverStream::new(completed_runs).map(Event::Outgoing);
+        let mut events = stream_select!(Box::pin(incoming), outgoing);
+
+        while let Some(event) = events.next().await {
+            match event {
+                Event::Incoming {
+                    in_flight_permit,
+                    msg,
+                } => {
+                    let pending_runs = pending_runs.clone();
+                    let handler = self.clone();
+                    spawn(async move {
+                        pending_runs
+                            .send(handler.handle_msg(msg.as_ref()).await)
+                            .unwrap()
+                    });
+
+                    mem::drop(in_flight_permit);
+                }
+                Event::Outgoing(outgoing) => socket_sink
+                    .send(outgoing?.into())
+                    .await
+                    .map_err(|e| Error::Protocol(e.to_string()))?,
+            }
+        }
+
+        Ok(())
+    }
+
+    // TODO: Make private once actix has been converted to `handle_socket`?
     /// Handle a raw Websocket message.
     ///
     /// This will read an `MsgId` from the message and route it to the correct
@@ -80,7 +151,7 @@ impl WebSocketHandler {
             .deserialize_from(&mut msg)
             .map_err(Error::Deserialization)?;
 
-        let Some(function) = self.0.get(&id)
+        let Some(function) = self.runners.get(&id)
         else { return Err(Error::FunctionNotFound) };
 
         function(msg).await
