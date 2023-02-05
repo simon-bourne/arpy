@@ -11,6 +11,7 @@ use futures::{
     future::BoxFuture,
     stream_select, Sink, SinkExt, Stream, StreamExt,
 };
+use serde::de::DeserializeOwned;
 use slotmap::DefaultKey;
 use thiserror::Error;
 use tokio::{
@@ -68,9 +69,22 @@ impl WebSocketRouter {
         self
     }
 
+    fn deserialize_msg<Msg: DeserializeOwned>(
+        mut input: impl io::Read,
+    ) -> Result<(DefaultKey, Msg)> {
+        let serializer = bincode::DefaultOptions::new().allow_trailing_bytes();
+        let msg: Msg = serializer
+            .deserialize_from(&mut input)
+            .map_err(Error::Deserialization)?;
+        let client_id: DefaultKey = serializer
+            .deserialize_from(input)
+            .map_err(Error::Deserialization)?;
+        Ok((client_id, msg))
+    }
+
     async fn run_subscription<F, FSig>(
         f: Arc<F>,
-        mut input: impl io::Read,
+        input: impl io::Read,
         mut result_sink: ResultSink,
     ) -> Result<()>
     where
@@ -78,16 +92,11 @@ impl WebSocketRouter {
         FSig: FnSubscription + Send + Sync + 'static,
         FSig::Item: Send + Sync + 'static,
     {
-        let serializer = bincode::DefaultOptions::new().allow_trailing_bytes();
-        let args: FSig = serializer
-            .deserialize_from(&mut input)
-            .map_err(Error::Deserialization)?;
-        let client_id: DefaultKey = serializer
-            .deserialize_from(input)
-            .map_err(Error::Deserialization)?;
+        let (client_id, args) = Self::deserialize_msg::<FSig>(input)?;
 
         let mut items = Box::pin(f.run(args));
 
+        let serializer = bincode::DefaultOptions::new();
         let mut body = Vec::new();
         serializer
             .serialize_into(&mut body, &protocol::VERSION)
@@ -119,26 +128,22 @@ impl WebSocketRouter {
 
     async fn run<F, FSig>(
         f: Arc<F>,
-        mut input: impl io::Read,
+        input: impl io::Read,
         mut result_sink: ResultSink,
     ) -> Result<()>
     where
         F: FnRemoteBody<FSig> + Send + Sync + 'static,
         FSig: FnRemote + Send + Sync + 'static,
     {
-        let serializer = bincode::DefaultOptions::new().allow_trailing_bytes();
-        let args: FSig = serializer
-            .deserialize_from(&mut input)
-            .map_err(Error::Deserialization)?;
-        let id: DefaultKey = serializer
-            .deserialize_from(input)
-            .map_err(Error::Deserialization)?;
+        let (client_id, args) = Self::deserialize_msg::<FSig>(input)?;
+
         let result = f.run(args).await;
         let mut body = Vec::new();
+        let serializer = bincode::DefaultOptions::new();
         serializer
             .serialize_into(&mut body, &protocol::VERSION)
             .unwrap();
-        serializer.serialize_into(&mut body, &id).unwrap();
+        serializer.serialize_into(&mut body, &client_id).unwrap();
         serializer.serialize_into(&mut body, &result).unwrap();
 
         result_sink.send(Ok(body)).await.unwrap();

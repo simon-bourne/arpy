@@ -406,6 +406,7 @@ dependencies = [
  "arpy",
  "bincode",
  "futures",
+ "serde",
  "slotmap",
  "thiserror",
  "tokio",
