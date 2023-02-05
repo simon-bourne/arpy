@@ -76,6 +76,8 @@ impl WebSocketHandler {
         // TODO: Semaphore count arg
         Arc::new(Self {
             runners: router.0,
+            // We use a semaphore so we have a resource limit shared between all connection, but
+            // each connection can maintain it's own unbounded queue of in-flight RPC calls.
             in_flight: Semaphore::new(1000),
         })
     }

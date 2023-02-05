@@ -13,8 +13,10 @@ impl WebSocketHandler {
     }
 
     pub async fn handle_socket(&self, socket: WebSocket) {
-        let (socket_sink, socket_stream) = socket.split();
-        let incoming = socket_stream
+        let (outgoing, incoming) = socket.split();
+        let outgoing =
+            outgoing.with(|msg| ready(Result::<Message, axum::Error>::Ok(Message::Binary(msg))));
+        let incoming = incoming
             .filter_map(Self::handle_incoming)
             .take_while(|msg| ready(msg.is_continue()))
             .filter_map(|msg| {
@@ -24,15 +26,7 @@ impl WebSocketHandler {
                 })
             });
 
-        if let Err(e) = self
-            .0
-            .handle_socket(
-                socket_sink
-                    .with(|msg| ready(Result::<Message, axum::Error>::Ok(Message::Binary(msg)))),
-                incoming,
-            )
-            .await
-        {
+        if let Err(e) = self.0.handle_socket(outgoing, incoming).await {
             tracing::error!("Error on WebSocket: {e}");
         }
     }
