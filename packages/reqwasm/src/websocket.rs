@@ -53,11 +53,7 @@ impl Connection {
         Self(send)
     }
 
-    // TODO: Simplify return type - use a result type?
-    pub async fn subscribe<S>(
-        &self,
-        service: S,
-    ) -> Result<impl Stream<Item = Result<S::Item, Error>>, Error>
+    pub async fn subscribe<S>(&self, service: S) -> Result<SubscriptionStream<S::Item>, Error>
     where
         S: FnSubscription,
     {
