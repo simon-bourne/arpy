@@ -1,10 +1,12 @@
-use std::sync::Arc;
+use std::{future::ready, ops::ControlFlow, sync::Arc};
 
-use actix_web::{web, Error, HttpRequest, HttpResponse};
-use actix_ws::{Message, MessageStream, Session};
-use anyhow::bail;
+use actix_web::{
+    web::{self, Bytes},
+    Error, HttpRequest, HttpResponse,
+};
+use actix_ws::{Closed, Message, MessageStream, ProtocolError, Session};
 use arpy_server::WebSocketRouter;
-use futures::StreamExt;
+use futures::{sink::unfold, StreamExt};
 
 #[derive(Clone)]
 pub struct WebSocketHandler(Arc<arpy_server::WebSocketHandler>);
@@ -14,33 +16,56 @@ impl WebSocketHandler {
         Self(arpy_server::WebSocketHandler::new(handler))
     }
 
-    pub async fn handle(
-        self,
-        mut session: Session,
-        mut msg_stream: MessageStream,
-    ) -> anyhow::Result<()> {
-        while let Some(msg) = msg_stream.next().await {
-            match msg? {
-                Message::Ping(bytes) => session.pong(&bytes).await?,
-                Message::Text(_) => bail!("`Text` messages are unsupported"),
-                Message::Binary(body) => {
-                    let reply = self.0.handle_msg(body.as_ref()).await?;
+    pub async fn handle(self, mut session: Session, incoming: MessageStream) -> Result<(), Closed> {
+        let incoming = incoming
+            .filter_map(Self::handle_incoming)
+            .take_while(|msg| ready(msg.is_continue()))
+            .filter_map(|msg| {
+                ready(match msg {
+                    ControlFlow::Continue(msg) => Some(msg),
+                    ControlFlow::Break(()) => None,
+                })
+            });
+        let outgoing = Box::pin(unfold(&mut session, |outgoing, msg: Bytes| async {
+            outgoing.binary(msg).await?;
+            Result::<&mut Session, Closed>::Ok(outgoing)
+        }));
 
-                    session.binary(reply).await?;
-                }
-                Message::Continuation(_) => bail!("`Continuation` messages are unsupported"),
-                Message::Pong(_) => (),
-                Message::Close(reason) => {
-                    session.close(reason).await?;
-                    return Ok(());
-                }
-                Message::Nop => (),
-            }
+        if let Err(e) = self.0.handle_socket(outgoing, incoming).await {
+            tracing::error!("Error on WebSocket: {e}");
         }
 
         session.close(None).await?;
 
         Ok(())
+    }
+
+    async fn handle_incoming(
+        msg: Result<Message, ProtocolError>,
+    ) -> Option<ControlFlow<(), Bytes>> {
+        let msg = match msg {
+            Ok(msg) => msg,
+            Err(e) => {
+                tracing::error!("Error on WebSocket: {e}");
+                return Some(ControlFlow::Break(()));
+            }
+        };
+
+        match msg {
+            Message::Text(_) => {
+                tracing::error!("Text message type is unsupported");
+                Some(ControlFlow::Break(()))
+            }
+            Message::Binary(params) => Some(ControlFlow::Continue(params)),
+            Message::Continuation(_) => {
+                tracing::error!("`Continuation` messages are unsupported");
+                Some(ControlFlow::Break(()))
+            }
+            Message::Ping(_) => None,
+            Message::Pong(_) => None,
+            Message::Close(_) => Some(ControlFlow::Break(())),
+            Message::Nop => None,
+        }
     }
 }
 

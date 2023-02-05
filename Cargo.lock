@@ -272,7 +272,6 @@ dependencies = [
  "actix-rt",
  "actix-web",
  "actix-ws",
- "anyhow",
  "arpy",
  "arpy-reqwest",
  "arpy-server",
@@ -285,6 +284,7 @@ dependencies = [
  "serde_json",
  "serde_urlencoded",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -408,7 +408,6 @@ dependencies = [
  "slotmap",
  "thiserror",
  "tokio",
- "tokio-stream",
 ]
 
 [[package]]
@@ -2217,17 +2216,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f7d995660bd2b7f8c1568414c1126076c13fbb725c40112dc0120b78eb9b717b"
 dependencies = [
  "native-tls",
- "tokio",
-]
-
-[[package]]
-name = "tokio-stream"
-version = "0.1.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d660770404473ccd7bc9f8b28494a811bc18542b915c0855c51e8f419d5223ce"
-dependencies = [
- "futures-core",
- "pin-project-lite",
  "tokio",
 ]
 
