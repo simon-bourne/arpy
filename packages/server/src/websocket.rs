@@ -6,14 +6,13 @@ use std::{collections::HashMap, error, io, mem, result, sync::Arc};
 
 use arpy::FnRemote;
 use bincode::Options;
-use futures::{future::BoxFuture, stream_select, Sink, SinkExt, Stream, StreamExt};
+use futures::{channel::mpsc, future::BoxFuture, stream_select, Sink, SinkExt, Stream, StreamExt};
 use slotmap::DefaultKey;
 use thiserror::Error;
 use tokio::{
     spawn,
-    sync::{mpsc, Semaphore, SemaphorePermit},
+    sync::{Semaphore, SemaphorePermit},
 };
-use tokio_stream::wrappers::UnboundedReceiverStream;
 
 use crate::FnRemoteBody;
 
@@ -83,7 +82,7 @@ impl WebSocketHandler {
 
     pub async fn handle_socket<SocketSink, Incoming, Outgoing>(
         self: &Arc<Self>,
-        mut socket_sink: SocketSink,
+        mut outgoing: SocketSink,
         incoming: impl Stream<Item = Incoming>,
     ) -> Result<()>
     where
@@ -100,18 +99,18 @@ impl WebSocketHandler {
             Outgoing(Result<Vec<u8>>),
         }
 
-        // Get the in-flight permit on the message stream, so we block the stream until
-        // we have a permit.
         let incoming = incoming.then(|msg| async {
             Event::Incoming {
+                // Get the in-flight permit on the message stream, so we block the stream until we
+                // have a permit.
                 in_flight_permit: self.in_flight.acquire().await.unwrap(),
                 msg,
             }
         });
 
-        let (pending_runs, completed_runs) = mpsc::unbounded_channel::<Result<Vec<u8>>>();
-        let outgoing = UnboundedReceiverStream::new(completed_runs).map(Event::Outgoing);
-        let mut events = stream_select!(Box::pin(incoming), outgoing);
+        let (pending_runs, completed_runs) = mpsc::unbounded::<Result<Vec<u8>>>();
+        let completed_runs = completed_runs.map(Event::Outgoing);
+        let mut events = stream_select!(Box::pin(incoming), completed_runs);
 
         while let Some(event) = events.next().await {
             match event {
@@ -119,18 +118,19 @@ impl WebSocketHandler {
                     in_flight_permit,
                     msg,
                 } => {
-                    let pending_runs = pending_runs.clone();
+                    let mut pending_runs = pending_runs.clone();
                     let handler = self.clone();
                     spawn(async move {
                         pending_runs
                             .send(handler.handle_msg(msg.as_ref()).await)
+                            .await
                             .unwrap()
                     });
 
                     mem::drop(in_flight_permit);
                 }
-                Event::Outgoing(outgoing) => socket_sink
-                    .send(outgoing?.into())
+                Event::Outgoing(msg) => outgoing
+                    .send(msg?.into())
                     .await
                     .map_err(|e| Error::Protocol(e.to_string()))?,
             }
