@@ -141,11 +141,11 @@ impl WebSocketHandler {
         Ok(())
     }
 
-    // TODO: Make private once actix has been converted to `handle_socket`?
     /// Handle a raw Websocket message.
     ///
     /// This will read an `MsgId` from the message and route it to the correct
-    /// implementation.
+    /// implementation. Prefer using [`Self::handle_socket`] if it's general
+    /// enough.
     pub async fn handle_msg(&self, mut msg: &[u8]) -> Result<Vec<u8>> {
         // TODO: Add a protocol version check
         let id: Vec<u8> = bincode::DefaultOptions::new()
