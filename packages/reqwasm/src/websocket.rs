@@ -76,12 +76,10 @@ impl Connection {
         // eventually contain the cancellation ID.
         recv.next().await;
 
-        Ok(recv.map(|msg| {
-            let serializer = bincode::DefaultOptions::new();
-            serializer
-                .deserialize_from(&msg.message[msg.payload_offset..])
-                .map_err(Error::deserialize_result)
-        }))
+        Ok(SubscriptionStream {
+            stream: recv,
+            phantom: PhantomData,
+        })
     }
 
     fn serialize_msg<M>(&self, msg: M) -> Vec<u8>
@@ -103,6 +101,29 @@ impl Connection {
 
     pub async fn close(self) {
         self.0.send(SendMsg::Close).unwrap_or(());
+    }
+}
+
+#[pin_project]
+pub struct SubscriptionStream<Item> {
+    #[pin]
+    stream: UnboundedReceiverStream<ReceiveMsg>,
+    phantom: PhantomData<Item>,
+}
+
+impl<Item: DeserializeOwned> Stream for SubscriptionStream<Item> {
+    type Item = Result<Item, Error>;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        match self.project().stream.poll_next(cx) {
+            Poll::Ready(msg) => Poll::Ready(msg.map(|msg| {
+                let serializer = bincode::DefaultOptions::new();
+                serializer
+                    .deserialize_from(&msg.message[msg.payload_offset..])
+                    .map_err(Error::deserialize_result)
+            })),
+            Poll::Pending => Poll::Pending,
+        }
     }
 }
 
