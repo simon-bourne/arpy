@@ -18,10 +18,7 @@ use serde::de::DeserializeOwned;
 use slotmap::{DefaultKey, SlotMap};
 use tokio::{
     select,
-    sync::{
-        mpsc::{self, UnboundedSender},
-        oneshot,
-    },
+    sync::{mpsc, oneshot},
 };
 use wasm_bindgen_futures::spawn_local;
 
@@ -34,7 +31,7 @@ use crate::Error;
 /// ```
 #[doc = include_doc::function_body!("tests/doc.rs", websocket_client, [my_app, MyAdd])]
 /// ```
-pub struct Connection(UnboundedSender<SendMsg>);
+pub struct Connection(mpsc::UnboundedSender<SendMsg>);
 
 impl Connection {
     /// Constructor.
