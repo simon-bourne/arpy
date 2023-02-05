@@ -10,7 +10,7 @@ use futures::{stream, Stream};
 use hyper::server::conn::AddrIncoming;
 use tower_http::cors::CorsLayer;
 
-use crate::{Add, TryMultiply};
+use crate::{Add, Counter, TryMultiply};
 
 pub async fn add(args: Add) -> i32 {
     args.0 + args.1
@@ -24,8 +24,15 @@ fn sse_stream() -> impl Stream<Item = Result<Add, Infallible>> {
     stream::repeat_with(|| Ok(Add(1, 2)))
 }
 
+fn counter_stream(args: Counter) -> impl Stream<Item = i32> {
+    stream::iter(args.0..)
+}
+
 pub fn dev_server(port: u16) -> axum::Server<AddrIncoming, IntoMakeService<Router>> {
-    let ws = WebSocketRouter::new().handle(add).handle(try_multiply);
+    let ws = WebSocketRouter::new()
+        .handle(add)
+        .handle(try_multiply)
+        .handle_subscription(counter_stream);
 
     let app = Router::new()
         .sse_route("/sse", sse_stream, None)
