@@ -36,7 +36,7 @@ impl WebSocketRouter {
         let f = Arc::new(f);
         self.0.insert(
             id,
-            Box::new(move |body| Box::pin(Self::run(f.clone(), body))),
+            Box::new(move |_id, body| Box::pin(Self::run(f.clone(), body))),
         );
 
         self
@@ -170,7 +170,7 @@ impl WebSocketHandler {
         let Some(function) = self.runners.get(&id)
         else { return Err(Error::FunctionNotFound) };
 
-        function(msg).await
+        function(&id, msg).await
     }
 }
 
@@ -187,5 +187,6 @@ pub enum Error {
 pub type Result<T> = result::Result<T, Error>;
 
 type Id = Vec<u8>;
-type RpcHandler =
-    Box<dyn for<'a> Fn(&'a [u8]) -> BoxFuture<'a, Result<Vec<u8>>> + Send + Sync + 'static>;
+type RpcHandler = Box<
+    dyn for<'a> Fn(&'a [u8], &'a [u8]) -> BoxFuture<'a, Result<Vec<u8>>> + Send + Sync + 'static,
+>;
