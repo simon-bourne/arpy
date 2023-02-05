@@ -86,6 +86,11 @@ impl<Success, Error, T> FnTryRemote<Success, Error> for T where
 {
 }
 
+pub trait FnSubscription: protocol::MsgId + Serialize + DeserializeOwned + Debug {
+    /// The return type.
+    type Item: Serialize + DeserializeOwned + Debug;
+}
+
 /// An RPC client.
 ///
 /// Implement this to provide an RPC client. It uses [`async_trait`] to provide

@@ -4,17 +4,21 @@
 //! repository.
 use std::{collections::HashMap, error, io, mem, result, sync::Arc};
 
-use arpy::{protocol, protocol::MsgId as _, FnRemote, MsgId};
+use arpy::{protocol, FnRemote, FnSubscription};
 use bincode::Options;
-use futures::{channel::mpsc, future::BoxFuture, stream_select, Sink, SinkExt, Stream, StreamExt};
+use futures::{
+    channel::mpsc::{self, Sender},
+    future::BoxFuture,
+    stream_select, Sink, SinkExt, Stream, StreamExt,
+};
 use slotmap::DefaultKey;
 use thiserror::Error;
 use tokio::{
     spawn,
-    sync::{Semaphore, SemaphorePermit},
+    sync::{OwnedSemaphorePermit, Semaphore},
 };
 
-use crate::FnRemoteBody;
+use crate::{FnRemoteBody, FnSubscriptionBody};
 
 /// A collection of RPC calls to be handled by a WebSocket.
 #[derive(Default)]
@@ -27,28 +31,85 @@ impl WebSocketRouter {
     }
 
     /// Add a handler for any RPC calls to `FSig`.
-    ///
-    /// # Panics
-    ///
-    /// If [`MsgId::ID`] is `"arpy"`, this will panic. `"arpy"` is reserved for
-    /// internal use.
-    ///
-    /// [`MsgId::ID`]: [arpy::protocol::MsgId]
     pub fn handle<F, FSig>(mut self, f: F) -> Self
     where
         F: FnRemoteBody<FSig> + Send + Sync + 'static,
         FSig: FnRemote + Send + Sync + 'static,
     {
-        assert!(FSig::ID != Arpy::ID);
-
         let id = FSig::ID.as_bytes().to_vec();
         let f = Arc::new(f);
         self.0.insert(
             id,
-            Box::new(move |_id, body| Box::pin(Self::run(f.clone(), body))),
+            Box::new(move |body, _result_sink| Box::pin(Self::run(f.clone(), body))),
         );
 
         self
+    }
+
+    pub fn handle_subscription<F, FSig>(mut self, f: F) -> Self
+    where
+        F: FnSubscriptionBody<FSig> + Send + Sync + 'static,
+        FSig: FnSubscription + Send + Sync + 'static,
+        FSig::Item: Send + Sync + 'static,
+    {
+        let id = FSig::ID.as_bytes().to_vec();
+        let f = Arc::new(f);
+
+        self.0.insert(
+            id,
+            Box::new(move |body, result_sink| {
+                Box::pin(Self::run_subscription(f.clone(), body, result_sink.clone()))
+            }),
+        );
+
+        self
+    }
+
+    async fn run_subscription<F, FSig>(
+        f: Arc<F>,
+        mut input: impl io::Read,
+        mut result_sink: ResultSink,
+    ) -> Result<Vec<u8>>
+    where
+        F: FnSubscriptionBody<FSig> + Send + Sync + 'static,
+        FSig: FnSubscription + Send + Sync + 'static,
+        FSig::Item: Send + Sync + 'static,
+    {
+        let serializer = bincode::DefaultOptions::new().allow_trailing_bytes();
+        let args: FSig = serializer
+            .deserialize_from(&mut input)
+            .map_err(Error::Deserialization)?;
+        let client_id: DefaultKey = serializer
+            .deserialize_from(input)
+            .map_err(Error::Deserialization)?;
+
+        let mut items = Box::pin(f.run(args));
+
+        spawn(async move {
+            // TODO: Cancellation
+            // TODO: We need a subscription count semaphore. This needs to be separate from
+            // the in-flight semaphore, as we still need to be able to receive cancellation
+            // requests. Need to think about the protocol, particularly around subscriptions
+            // backing up.
+            while let Some(item) = items.next().await {
+                let mut body = Vec::new();
+                serializer
+                    .serialize_into(&mut body, &protocol::VERSION)
+                    .unwrap();
+                serializer.serialize_into(&mut body, &client_id).unwrap();
+                serializer.serialize_into(&mut body, &item).unwrap();
+
+                result_sink.send(Ok(body)).await.unwrap()
+            }
+        });
+
+        let mut body = Vec::new();
+        serializer
+            .serialize_into(&mut body, &protocol::VERSION)
+            .unwrap();
+        serializer.serialize_into(&mut body, &client_id).unwrap();
+
+        Ok(body)
     }
 
     async fn run<F, FSig>(f: Arc<F>, mut input: impl io::Read) -> Result<Vec<u8>>
@@ -56,7 +117,7 @@ impl WebSocketRouter {
         F: FnRemoteBody<FSig> + Send + Sync + 'static,
         FSig: FnRemote + Send + Sync + 'static,
     {
-        let serializer = bincode::DefaultOptions::new();
+        let serializer = bincode::DefaultOptions::new().allow_trailing_bytes();
         let args: FSig = serializer
             .deserialize_from(&mut input)
             .map_err(Error::Deserialization)?;
@@ -80,7 +141,7 @@ impl WebSocketRouter {
 /// Use `WebSocketHandler` to implement a Websocket server.
 pub struct WebSocketHandler {
     runners: HashMap<Id, RpcHandler>,
-    in_flight: Semaphore,
+    in_flight: Arc<Semaphore>,
 }
 
 impl WebSocketHandler {
@@ -90,7 +151,7 @@ impl WebSocketHandler {
             runners: router.0,
             // We use a semaphore so we have a resource limit shared between all connection, but
             // each connection can maintain it's own unbounded queue of in-flight RPC calls.
-            in_flight: Semaphore::new(1000),
+            in_flight: Arc::new(Semaphore::new(1000)),
         })
     }
 
@@ -105,26 +166,19 @@ impl WebSocketHandler {
         SocketSink: Sink<Outgoing> + Unpin,
         SocketSink::Error: Send + Sync + error::Error + 'static,
     {
-        enum Event<'a, Incoming0> {
-            Incoming {
-                in_flight_permit: SemaphorePermit<'a>,
-                msg: Incoming0,
-            },
-            Outgoing(Result<Vec<u8>>),
-        }
-
         let incoming = incoming.then(|msg| async {
             Event::Incoming {
                 // Get the in-flight permit on the message stream, so we block the stream until we
                 // have a permit.
-                in_flight_permit: self.in_flight.acquire().await.unwrap(),
+                in_flight_permit: self.in_flight.clone().acquire_owned().await.unwrap(),
                 msg,
             }
         });
 
-        let (pending_runs, completed_runs) = mpsc::unbounded::<Result<Vec<u8>>>();
-        let completed_runs = completed_runs.map(Event::Outgoing);
-        let mut events = stream_select!(Box::pin(incoming), completed_runs);
+        // TODO: Pass in channel bounds
+        let (result_sink, result_stream) = mpsc::channel::<Result<Vec<u8>>>(1000);
+        let result_stream = result_stream.map(Event::Outgoing);
+        let mut events = stream_select!(Box::pin(incoming), result_stream);
 
         while let Some(event) = events.next().await {
             match event {
@@ -132,16 +186,15 @@ impl WebSocketHandler {
                     in_flight_permit,
                     msg,
                 } => {
-                    let mut pending_runs = pending_runs.clone();
+                    let mut result_sink = result_sink.clone();
                     let handler = self.clone();
                     spawn(async move {
-                        pending_runs
-                            .send(handler.handle_msg(msg.as_ref()).await)
+                        result_sink
+                            .send(handler.handle_msg(msg.as_ref(), &result_sink).await)
                             .await
-                            .unwrap()
+                            .unwrap();
+                        mem::drop(in_flight_permit);
                     });
-
-                    mem::drop(in_flight_permit);
                 }
                 Event::Outgoing(msg) => outgoing
                     .send(msg?.into())
@@ -158,8 +211,7 @@ impl WebSocketHandler {
     /// This will read an `MsgId` from the message and route it to the correct
     /// implementation. Prefer using [`Self::handle_socket`] if it's general
     /// enough.
-    pub async fn handle_msg(&self, mut msg: &[u8]) -> Result<Vec<u8>> {
-        // TODO: Add a protocol version check
+    pub async fn handle_msg(&self, mut msg: &[u8], result_sink: &ResultSink) -> Result<Vec<u8>> {
         let serializer = bincode::DefaultOptions::new().allow_trailing_bytes();
         let protocol_version: usize = serializer
             .deserialize_from(&mut msg)
@@ -180,7 +232,7 @@ impl WebSocketHandler {
         let Some(function) = self.runners.get(&id)
         else { return Err(Error::FunctionNotFound) };
 
-        function(&id, msg).await
+        function(msg, result_sink).await
     }
 }
 
@@ -198,8 +250,14 @@ pub type Result<T> = result::Result<T, Error>;
 
 type Id = Vec<u8>;
 type RpcHandler = Box<
-    dyn for<'a> Fn(&'a [u8], &'a [u8]) -> BoxFuture<'a, Result<Vec<u8>>> + Send + Sync + 'static,
+    dyn for<'a> Fn(&'a [u8], &ResultSink) -> BoxFuture<'a, Result<Vec<u8>>> + Send + Sync + 'static,
 >;
+type ResultSink = Sender<Result<Vec<u8>>>;
 
-#[derive(MsgId)]
-enum Arpy {}
+enum Event<Incoming> {
+    Incoming {
+        in_flight_permit: OwnedSemaphorePermit,
+        msg: Incoming,
+    },
+    Outgoing(Result<Vec<u8>>),
+}

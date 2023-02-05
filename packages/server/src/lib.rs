@@ -1,6 +1,7 @@
 use std::future::Future;
 
-use arpy::FnRemote;
+use arpy::{FnRemote, FnSubscription};
+use futures::Stream;
 pub use websocket::{WebSocketHandler, WebSocketRouter};
 
 pub mod websocket;
@@ -30,6 +31,31 @@ where
     type Fut = Fut;
 
     fn run(&self, args: Args) -> Self::Fut {
+        self(args)
+    }
+}
+
+pub trait FnSubscriptionBody<Args>
+where
+    Args: FnSubscription,
+    Args::Item: Send + Sync + 'static,
+{
+    type Stream: Stream<Item = Args::Item> + Send + Sync;
+
+    /// Evaluate the function.
+    fn run(&self, args: Args) -> Self::Stream;
+}
+
+impl<Args, St, F> FnSubscriptionBody<Args> for F
+where
+    Args: FnSubscription,
+    F: Fn(Args) -> St,
+    St: Stream<Item = Args::Item> + Send + Sync,
+    Args::Item: Send + Sync + 'static,
+{
+    type Stream = St;
+
+    fn run(&self, args: Args) -> Self::Stream {
         self(args)
     }
 }

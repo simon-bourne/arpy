@@ -8,7 +8,7 @@ use std::{
     task::{Context, Poll},
 };
 
-use arpy::{ConcurrentRpcClient, FnRemote, RpcClient, protocol};
+use arpy::{protocol, ConcurrentRpcClient, FnRemote, RpcClient};
 use async_trait::async_trait;
 use bincode::Options;
 use futures::{SinkExt, StreamExt};
@@ -165,7 +165,8 @@ impl BackgroundWebsocket {
                 if protocol_version != protocol::VERSION {
                     return Err(Error::receive(format!(
                         "Unknown protocol version. Expected {}, got {}.",
-                        protocol::VERSION, protocol_version
+                        protocol::VERSION,
+                        protocol_version
                     )));
                 }
 
