@@ -25,7 +25,7 @@ fn sse_stream() -> impl Stream<Item = Result<Add, Infallible>> {
 }
 
 fn counter_stream(args: Counter) -> impl Stream<Item = i32> {
-    stream::iter(args.0..)
+    stream::iter(args.0..(args.0 + 10))
 }
 
 pub fn dev_server(port: u16) -> axum::Server<AddrIncoming, IntoMakeService<Router>> {

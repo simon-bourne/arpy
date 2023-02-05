@@ -1,7 +1,8 @@
 //! These tests are run from `provide_server`
 use arpy::{FnRemote, FnTryRemote};
 use arpy_reqwasm::{http, websocket};
-use arpy_test::{Add, TryMultiply, PORT};
+use arpy_test::{Add, Counter, TryMultiply, PORT};
+use futures::StreamExt;
 use reqwasm::websocket::futures::WebSocket;
 use wasm_bindgen_test::{wasm_bindgen_test, wasm_bindgen_test_configure};
 
@@ -16,8 +17,7 @@ async fn simple_http() {
 
 #[wasm_bindgen_test]
 async fn simple_websocket() {
-    let ws = WebSocket::open(&server_url("ws", "ws")).unwrap();
-    let connection = websocket::Connection::new(ws);
+    let connection = websocket();
 
     assert_eq!(3, Add(1, 2).call(&connection).await.unwrap());
     assert_eq!(12, TryMultiply(3, 4).try_call(&connection).await.unwrap());
@@ -25,8 +25,7 @@ async fn simple_websocket() {
 
 #[wasm_bindgen_test]
 async fn out_of_order_websocket() {
-    let ws = WebSocket::open(&server_url("ws", "ws")).unwrap();
-    let connection = websocket::Connection::new(ws);
+    let connection = websocket();
 
     let result1 = Add(1, 2).begin_call(&connection).await.unwrap();
     let result2 = TryMultiply(3, 4).try_begin_call(&connection).await.unwrap();
@@ -34,6 +33,26 @@ async fn out_of_order_websocket() {
     // Await in reverse order
     assert_eq!(12, result2.await.unwrap());
     assert_eq!(3, result1.await.unwrap());
+}
+
+#[wasm_bindgen_test]
+async fn websocket_subscription() {
+    let connection = websocket();
+
+    let stream = connection.subscribe(Counter(5)).await.unwrap();
+
+    assert_eq!(
+        stream
+            .take(10)
+            .map(Result::unwrap)
+            .collect::<Vec<i32>>()
+            .await,
+        (5..15).collect::<Vec<i32>>()
+    )
+}
+
+fn websocket() -> websocket::Connection {
+    websocket::Connection::new(WebSocket::open(&server_url("ws", "ws")).unwrap())
 }
 
 fn server_url(scheme: &str, route: &str) -> String {

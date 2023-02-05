@@ -86,6 +86,9 @@ impl<Success, Error, T> FnTryRemote<Success, Error> for T where
 {
 }
 
+// TODO: What about subscriptions that can fail? `try_subscribe` + how to manage
+// on the server.
+// TODO: Method call syntax.
 pub trait FnSubscription: protocol::MsgId + Serialize + DeserializeOwned + Debug {
     /// The return type.
     type Item: Serialize + DeserializeOwned + Debug;

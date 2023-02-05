@@ -35,12 +35,15 @@ impl WebSocketRouter {
     where
         F: FnRemoteBody<FSig> + Send + Sync + 'static,
         FSig: FnRemote + Send + Sync + 'static,
+        FSig::Output: Send + Sync + 'static,
     {
         let id = FSig::ID.as_bytes().to_vec();
         let f = Arc::new(f);
         self.0.insert(
             id,
-            Box::new(move |body, _result_sink| Box::pin(Self::run(f.clone(), body))),
+            Box::new(move |body, result_sink| {
+                Box::pin(Self::run(f.clone(), body, result_sink.clone()))
+            }),
         );
 
         self
@@ -69,7 +72,7 @@ impl WebSocketRouter {
         f: Arc<F>,
         mut input: impl io::Read,
         mut result_sink: ResultSink,
-    ) -> Result<Vec<u8>>
+    ) -> Result<()>
     where
         F: FnSubscriptionBody<FSig> + Send + Sync + 'static,
         FSig: FnSubscription + Send + Sync + 'static,
@@ -84,6 +87,14 @@ impl WebSocketRouter {
             .map_err(Error::Deserialization)?;
 
         let mut items = Box::pin(f.run(args));
+
+        let mut body = Vec::new();
+        serializer
+            .serialize_into(&mut body, &protocol::VERSION)
+            .unwrap();
+        serializer.serialize_into(&mut body, &client_id).unwrap();
+
+        result_sink.send(Ok(body)).await.unwrap();
 
         spawn(async move {
             // TODO: Cancellation
@@ -103,16 +114,14 @@ impl WebSocketRouter {
             }
         });
 
-        let mut body = Vec::new();
-        serializer
-            .serialize_into(&mut body, &protocol::VERSION)
-            .unwrap();
-        serializer.serialize_into(&mut body, &client_id).unwrap();
-
-        Ok(body)
+        Ok(())
     }
 
-    async fn run<F, FSig>(f: Arc<F>, mut input: impl io::Read) -> Result<Vec<u8>>
+    async fn run<F, FSig>(
+        f: Arc<F>,
+        mut input: impl io::Read,
+        mut result_sink: ResultSink,
+    ) -> Result<()>
     where
         F: FnRemoteBody<FSig> + Send + Sync + 'static,
         FSig: FnRemote + Send + Sync + 'static,
@@ -132,7 +141,9 @@ impl WebSocketRouter {
         serializer.serialize_into(&mut body, &id).unwrap();
         serializer.serialize_into(&mut body, &result).unwrap();
 
-        Ok(body)
+        result_sink.send(Ok(body)).await.unwrap();
+
+        Ok(())
     }
 }
 
@@ -189,10 +200,10 @@ impl WebSocketHandler {
                     let mut result_sink = result_sink.clone();
                     let handler = self.clone();
                     spawn(async move {
-                        result_sink
-                            .send(handler.handle_msg(msg.as_ref(), &result_sink).await)
-                            .await
-                            .unwrap();
+                        if let Err(e) = handler.handle_msg(msg.as_ref(), &result_sink).await {
+                            result_sink.send(Err(e)).await.unwrap();
+                        }
+
                         mem::drop(in_flight_permit);
                     });
                 }
@@ -208,10 +219,10 @@ impl WebSocketHandler {
 
     /// Handle a raw Websocket message.
     ///
-    /// This will read an `MsgId` from the message and route it to the correct
+    /// This will read a `MsgId` from the message and route it to the correct
     /// implementation. Prefer using [`Self::handle_socket`] if it's general
     /// enough.
-    pub async fn handle_msg(&self, mut msg: &[u8], result_sink: &ResultSink) -> Result<Vec<u8>> {
+    pub async fn handle_msg(&self, mut msg: &[u8], result_sink: &ResultSink) -> Result<()> {
         let serializer = bincode::DefaultOptions::new().allow_trailing_bytes();
         let protocol_version: usize = serializer
             .deserialize_from(&mut msg)
@@ -249,9 +260,8 @@ pub enum Error {
 pub type Result<T> = result::Result<T, Error>;
 
 type Id = Vec<u8>;
-type RpcHandler = Box<
-    dyn for<'a> Fn(&'a [u8], &ResultSink) -> BoxFuture<'a, Result<Vec<u8>>> + Send + Sync + 'static,
->;
+type RpcHandler =
+    Box<dyn for<'a> Fn(&'a [u8], &ResultSink) -> BoxFuture<'a, Result<()>> + Send + Sync + 'static>;
 type ResultSink = Sender<Result<Vec<u8>>>;
 
 enum Event<Incoming> {

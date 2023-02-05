@@ -8,18 +8,19 @@ use std::{
     task::{Context, Poll},
 };
 
-use arpy::{protocol, ConcurrentRpcClient, FnRemote, RpcClient};
+use arpy::{protocol, ConcurrentRpcClient, FnRemote, FnSubscription, RpcClient};
 use async_trait::async_trait;
 use bincode::Options;
-use futures::{SinkExt, StreamExt};
+use futures::{SinkExt, Stream, StreamExt};
 use pin_project::pin_project;
 use reqwasm::websocket::{futures::WebSocket, Message, WebSocketError};
-use serde::de::DeserializeOwned;
+use serde::{de::DeserializeOwned, Serialize};
 use slotmap::{DefaultKey, SlotMap};
 use tokio::{
     select,
     sync::{mpsc, oneshot},
 };
+use tokio_stream::wrappers::UnboundedReceiverStream;
 use wasm_bindgen_futures::spawn_local;
 
 use crate::Error;
@@ -44,11 +45,60 @@ impl Connection {
             ws,
             to_send,
             msg_ids: SlotMap::new(),
+            subscription_ids: SlotMap::new(),
         };
 
         spawn_local(async move { bg_ws.run().await.unwrap() });
 
         Self(send)
+    }
+
+    // TODO: Simplify return type - use a result type?
+    pub async fn subscribe<S>(
+        &self,
+        service: S,
+    ) -> Result<impl Stream<Item = Result<S::Item, Error>>, Error>
+    where
+        S: FnSubscription,
+    {
+        let (subscription, recv) = mpsc::unbounded_channel();
+
+        self.0
+            .send(SendMsg::Subscribe {
+                msg: self.serialize_msg(service),
+                subscription,
+            })
+            .map_err(Error::send)?;
+
+        let mut recv = UnboundedReceiverStream::new(recv);
+
+        // Discard the first message. It's the reply to the subscription and will
+        // eventually contain the cancellation ID.
+        recv.next().await;
+
+        Ok(recv.map(|msg| {
+            let serializer = bincode::DefaultOptions::new();
+            serializer
+                .deserialize_from(&msg.message[msg.payload_offset..])
+                .map_err(Error::deserialize_result)
+        }))
+    }
+
+    fn serialize_msg<M>(&self, msg: M) -> Vec<u8>
+    where
+        M: protocol::MsgId + Serialize,
+    {
+        let mut msg_bytes = Vec::new();
+        let serializer = bincode::DefaultOptions::new();
+        serializer
+            .serialize_into(&mut msg_bytes, &protocol::VERSION)
+            .unwrap();
+        serializer
+            .serialize_into(&mut msg_bytes, M::ID.as_bytes())
+            .unwrap();
+        serializer.serialize_into(&mut msg_bytes, &msg).unwrap();
+
+        msg_bytes
     }
 
     pub async fn close(self) {
@@ -62,24 +112,17 @@ impl ConcurrentRpcClient for Connection {
     type Error = Error;
 
     // TODO: `fn send` to send a fire and forget message
-    // TODO: `fn subscribe`
     async fn begin_call<F>(&self, function: F) -> Result<Self::Call<F::Output>, Self::Error>
     where
         F: FnRemote,
     {
-        let mut msg = Vec::new();
-        let serializer = bincode::DefaultOptions::new();
-        serializer
-            .serialize_into(&mut msg, &protocol::VERSION)
-            .unwrap();
-        serializer
-            .serialize_into(&mut msg, F::ID.as_bytes())
-            .unwrap();
-        serializer.serialize_into(&mut msg, &function).unwrap();
         let (notify, recv) = oneshot::channel();
 
         self.0
-            .send(SendMsg::Msg { msg, notify })
+            .send(SendMsg::Msg {
+                msg: self.serialize_msg(function),
+                notify,
+            })
             .map_err(Error::send)?;
 
         Ok(Call {
@@ -131,6 +174,7 @@ struct BackgroundWebsocket {
     ws: WebSocket,
     to_send: mpsc::UnboundedReceiver<SendMsg>,
     msg_ids: SlotMap<DefaultKey, oneshot::Sender<ReceiveMsg>>,
+    subscription_ids: SlotMap<DefaultKey, mpsc::UnboundedSender<ReceiveMsg>>,
 }
 
 impl BackgroundWebsocket {
@@ -170,15 +214,27 @@ impl BackgroundWebsocket {
                 let id: DefaultKey = serializer
                     .deserialize_from(&mut reader)
                     .map_err(Error::deserialize_result)?;
-                let Some(notifier) = self.msg_ids.remove(id)
-                else { return  Err(Error::deserialize_result("Unknown message id")); };
                 let payload_offset = message.len() - reader.len();
-                notifier
-                    .send(ReceiveMsg {
-                        payload_offset,
-                        message,
-                    })
-                    .map_err(|_| Error::receive("Unable to send message to client"))?;
+
+                if let Some(notifier) = self.msg_ids.remove(id) {
+                    notifier
+                        .send(ReceiveMsg {
+                            payload_offset,
+                            message,
+                        })
+                        .map_err(|_| Error::receive("Unable to send message to client"))?;
+                } else if let Some(subscription) = self.subscription_ids.get(id) {
+                    subscription
+                        .send(ReceiveMsg {
+                            payload_offset,
+                            message,
+                        })
+                        .map_err(|_| {
+                            Error::receive("Unable to send subscription message to client")
+                        })?;
+                } else {
+                    return Err(Error::deserialize_result("Unknown message id"));
+                };
             }
         }
 
@@ -199,6 +255,18 @@ impl BackgroundWebsocket {
                     .await
                     .map_err(Error::send)?;
             }
+            SendMsg::Subscribe {
+                mut msg,
+                subscription,
+            } => {
+                let serializer = bincode::DefaultOptions::new();
+                let key = self.subscription_ids.insert(subscription);
+                serializer.serialize_into(&mut msg, &key).unwrap();
+                self.ws
+                    .send(Message::Bytes(msg))
+                    .await
+                    .map_err(Error::send)?;
+            }
         }
 
         Ok(true)
@@ -210,6 +278,11 @@ enum SendMsg {
     Msg {
         msg: Vec<u8>,
         notify: oneshot::Sender<ReceiveMsg>,
+    },
+    Subscribe {
+        msg: Vec<u8>,
+        // TODO: This probably should be bounded.
+        subscription: mpsc::UnboundedSender<ReceiveMsg>,
     },
 }
 
