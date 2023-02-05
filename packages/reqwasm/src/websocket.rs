@@ -8,7 +8,7 @@ use std::{
     task::{Context, Poll},
 };
 
-use arpy::{ConcurrentRpcClient, FnRemote, RpcClient};
+use arpy::{ConcurrentRpcClient, FnRemote, RpcClient, PROTOCOL_VERSION};
 use async_trait::async_trait;
 use bincode::Options;
 use futures::{SinkExt, StreamExt};
@@ -72,6 +72,9 @@ impl ConcurrentRpcClient for Connection {
     {
         let mut msg = Vec::new();
         let serializer = bincode::DefaultOptions::new();
+        serializer
+            .serialize_into(&mut msg, &PROTOCOL_VERSION)
+            .unwrap();
         serializer
             .serialize_into(&mut msg, F::ID.as_bytes())
             .unwrap();
@@ -152,11 +155,20 @@ impl BackgroundWebsocket {
         match msg.map_err(Error::receive)? {
             Message::Text(_) => return Err(Error::receive("Text messages are unsupported")),
             Message::Bytes(message) => {
-                let serializer = bincode::DefaultOptions::new();
+                let serializer = bincode::DefaultOptions::new().allow_trailing_bytes();
                 let mut reader = message.as_slice();
 
-                // TODO: Add functions to serialize/deserialize Id (with protocol version
-                // check)? TODO: Add a protocol version check
+                let protocol_version: usize = serializer
+                    .deserialize_from(&mut reader)
+                    .map_err(Error::deserialize_result)?;
+
+                if protocol_version != PROTOCOL_VERSION {
+                    return Err(Error::receive(format!(
+                        "Unknown protocol version. Expected {}, got {}.",
+                        PROTOCOL_VERSION, protocol_version
+                    )));
+                }
+
                 let id: DefaultKey = serializer
                     .deserialize_from(&mut reader)
                     .map_err(Error::deserialize_result)?;

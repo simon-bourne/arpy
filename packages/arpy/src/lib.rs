@@ -290,3 +290,5 @@ impl FromStr for MimeType {
         }
     }
 }
+
+pub const PROTOCOL_VERSION: usize = 0;

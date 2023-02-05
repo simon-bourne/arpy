@@ -4,7 +4,7 @@
 //! repository.
 use std::{collections::HashMap, error, io, mem, result, sync::Arc};
 
-use arpy::FnRemote;
+use arpy::{FnRemote, PROTOCOL_VERSION};
 use bincode::Options;
 use futures::{channel::mpsc, future::BoxFuture, stream_select, Sink, SinkExt, Stream, StreamExt};
 use slotmap::DefaultKey;
@@ -52,10 +52,13 @@ impl WebSocketRouter {
             .deserialize_from(&mut input)
             .map_err(Error::Deserialization)?;
         let id: DefaultKey = serializer
-            .deserialize_from(&mut input)
+            .deserialize_from(input)
             .map_err(Error::Deserialization)?;
         let result = f.run(args).await;
         let mut body = Vec::new();
+        serializer
+            .serialize_into(&mut body, &PROTOCOL_VERSION)
+            .unwrap();
         serializer.serialize_into(&mut body, &id).unwrap();
         serializer.serialize_into(&mut body, &result).unwrap();
 
@@ -148,8 +151,19 @@ impl WebSocketHandler {
     /// enough.
     pub async fn handle_msg(&self, mut msg: &[u8]) -> Result<Vec<u8>> {
         // TODO: Add a protocol version check
-        let id: Vec<u8> = bincode::DefaultOptions::new()
-            .allow_trailing_bytes()
+        let serializer = bincode::DefaultOptions::new().allow_trailing_bytes();
+        let protocol_version: usize = serializer
+            .deserialize_from(&mut msg)
+            .map_err(Error::Deserialization)?;
+
+        if protocol_version != PROTOCOL_VERSION {
+            return Err(Error::Protocol(format!(
+                "Unknown protocol version: Expected {}, got {}",
+                PROTOCOL_VERSION, protocol_version
+            )));
+        }
+
+        let id: Vec<u8> = serializer
             .deserialize_from(&mut msg)
             .map_err(Error::Deserialization)?;
 
