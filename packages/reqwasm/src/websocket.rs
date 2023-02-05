@@ -8,7 +8,7 @@ use std::{
     task::{Context, Poll},
 };
 
-use arpy::{ConcurrentRpcClient, FnRemote, RpcClient, PROTOCOL_VERSION};
+use arpy::{ConcurrentRpcClient, FnRemote, RpcClient, protocol};
 use async_trait::async_trait;
 use bincode::Options;
 use futures::{SinkExt, StreamExt};
@@ -73,7 +73,7 @@ impl ConcurrentRpcClient for Connection {
         let mut msg = Vec::new();
         let serializer = bincode::DefaultOptions::new();
         serializer
-            .serialize_into(&mut msg, &PROTOCOL_VERSION)
+            .serialize_into(&mut msg, &protocol::VERSION)
             .unwrap();
         serializer
             .serialize_into(&mut msg, F::ID.as_bytes())
@@ -162,10 +162,10 @@ impl BackgroundWebsocket {
                     .deserialize_from(&mut reader)
                     .map_err(Error::deserialize_result)?;
 
-                if protocol_version != PROTOCOL_VERSION {
+                if protocol_version != protocol::VERSION {
                     return Err(Error::receive(format!(
                         "Unknown protocol version. Expected {}, got {}.",
-                        PROTOCOL_VERSION, protocol_version
+                        protocol::VERSION, protocol_version
                     )));
                 }
 

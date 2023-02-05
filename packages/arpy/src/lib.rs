@@ -248,6 +248,8 @@ pub enum ErrorFrom<C, S> {
 
 /// Uniquely identify a message type.
 pub mod protocol {
+    pub const VERSION: usize = 0;
+
     /// This should be `derive`d with [`crate::MsgId`].
     pub trait MsgId {
         /// `ID` should be a short identifier to uniquely identify a message
@@ -290,5 +292,3 @@ impl FromStr for MimeType {
         }
     }
 }
-
-pub const PROTOCOL_VERSION: usize = 0;

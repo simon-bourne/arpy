@@ -4,7 +4,7 @@
 //! repository.
 use std::{collections::HashMap, error, io, mem, result, sync::Arc};
 
-use arpy::{protocol::MsgId as _, FnRemote, MsgId, PROTOCOL_VERSION};
+use arpy::{protocol, protocol::MsgId as _, FnRemote, MsgId};
 use bincode::Options;
 use futures::{channel::mpsc, future::BoxFuture, stream_select, Sink, SinkExt, Stream, StreamExt};
 use slotmap::DefaultKey;
@@ -66,7 +66,7 @@ impl WebSocketRouter {
         let result = f.run(args).await;
         let mut body = Vec::new();
         serializer
-            .serialize_into(&mut body, &PROTOCOL_VERSION)
+            .serialize_into(&mut body, &protocol::VERSION)
             .unwrap();
         serializer.serialize_into(&mut body, &id).unwrap();
         serializer.serialize_into(&mut body, &result).unwrap();
@@ -165,10 +165,11 @@ impl WebSocketHandler {
             .deserialize_from(&mut msg)
             .map_err(Error::Deserialization)?;
 
-        if protocol_version != PROTOCOL_VERSION {
+        if protocol_version != protocol::VERSION {
             return Err(Error::Protocol(format!(
                 "Unknown protocol version: Expected {}, got {}",
-                PROTOCOL_VERSION, protocol_version
+                protocol::VERSION,
+                protocol_version
             )));
         }
 
