@@ -10,7 +10,7 @@ use std::{
     task::{Context, Poll},
 };
 
-/// Derive an [`transport::MsgId`].
+/// Derive a [`protocol::MsgId`].
 ///
 /// It will use the kebab cased type name without any generics or module path.
 pub use arpy_macros::MsgId;
@@ -25,7 +25,7 @@ use thiserror::Error;
 /// This defines the signature of an RPC call, which can then be used by the
 /// client or the server.
 #[async_trait(?Send)]
-pub trait FnRemote: transport::MsgId + Serialize + DeserializeOwned + Debug {
+pub trait FnRemote: protocol::MsgId + Serialize + DeserializeOwned + Debug {
     /// The return type.
     type Output: Serialize + DeserializeOwned + Debug;
 
@@ -230,7 +230,7 @@ pub trait ServerSentEvents {
 
     async fn subscribe<T>(&self) -> Result<Self::Output<T>, Self::Error>
     where
-        T: DeserializeOwned + transport::MsgId;
+        T: DeserializeOwned + protocol::MsgId;
 }
 
 /// An error from a fallible RPC call.
@@ -247,7 +247,7 @@ pub enum ErrorFrom<C, S> {
 }
 
 /// Uniquely identify a message type.
-pub mod transport {
+pub mod protocol {
     /// This should be `derive`d with [`crate::MsgId`].
     pub trait MsgId {
         /// `ID` should be a short identifier to uniquely identify a message

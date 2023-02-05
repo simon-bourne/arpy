@@ -4,7 +4,7 @@
 //! repository.
 use std::{collections::HashMap, error, io, mem, result, sync::Arc};
 
-use arpy::{FnRemote, PROTOCOL_VERSION};
+use arpy::{protocol::MsgId as _, FnRemote, MsgId, PROTOCOL_VERSION};
 use bincode::Options;
 use futures::{channel::mpsc, future::BoxFuture, stream_select, Sink, SinkExt, Stream, StreamExt};
 use slotmap::DefaultKey;
@@ -27,11 +27,20 @@ impl WebSocketRouter {
     }
 
     /// Add a handler for any RPC calls to `FSig`.
+    ///
+    /// # Panics
+    ///
+    /// If [`MsgId::ID`] is `"arpy"`, this will panic. `"arpy"` is reserved for
+    /// internal use.
+    ///
+    /// [`MsgId::ID`]: [arpy::protocol::MsgId]
     pub fn handle<F, FSig>(mut self, f: F) -> Self
     where
         F: FnRemoteBody<FSig> + Send + Sync + 'static,
         FSig: FnRemote + Send + Sync + 'static,
     {
+        assert!(FSig::ID != Arpy::ID);
+
         let id = FSig::ID.as_bytes().to_vec();
         let f = Arc::new(f);
         self.0.insert(
@@ -190,3 +199,6 @@ type Id = Vec<u8>;
 type RpcHandler = Box<
     dyn for<'a> Fn(&'a [u8], &'a [u8]) -> BoxFuture<'a, Result<Vec<u8>>> + Send + Sync + 'static,
 >;
+
+#[derive(MsgId)]
+enum Arpy {}
