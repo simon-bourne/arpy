@@ -228,10 +228,14 @@ impl WebSocketHandler {
                         mem::drop(in_flight_permit);
                     });
                 }
-                Event::Outgoing(msg) => outgoing
-                    .send(msg?.into())
-                    .await
-                    .map_err(|e| Error::Protocol(e.to_string()))?,
+                Event::Outgoing(msg) => {
+                    let result = outgoing.send(msg?.into()).await;
+
+                    if let Err(e) = result {
+                        tracing::info!("Connection closed: {e}");
+                        break;
+                    }
+                }
             }
         }
 
