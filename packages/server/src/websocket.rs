@@ -119,7 +119,9 @@ impl WebSocketRouter {
                 serializer.serialize_into(&mut body, &client_id).unwrap();
                 serializer.serialize_into(&mut body, &item).unwrap();
 
-                result_sink.send(Ok(body)).await.unwrap()
+                if result_sink.send(Ok(body)).await.is_err() {
+                    break;
+                }
             }
         });
 
