@@ -49,9 +49,11 @@ impl Connection {
             subscription_ids: SlotMap::new(),
         };
 
-        spawn_local(async move { 
-            // TODO: We probably want to report this error, or just ignore it if it's a close
-            bg_ws.run().await.unwrap() });
+        spawn_local(async move {
+            // TODO: We probably want to report this error, or just ignore it if it's a
+            // close
+            bg_ws.run().await.unwrap()
+        });
 
         Self(send)
     }
