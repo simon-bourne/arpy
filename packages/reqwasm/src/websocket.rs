@@ -32,6 +32,7 @@ use crate::Error;
 /// ```
 #[doc = include_doc::function_body!("tests/doc.rs", websocket_client, [my_app, MyAdd])]
 /// ```
+#[derive(Clone)]
 pub struct Connection(mpsc::UnboundedSender<SendMsg>);
 
 impl Connection {
@@ -48,7 +49,9 @@ impl Connection {
             subscription_ids: SlotMap::new(),
         };
 
-        spawn_local(async move { bg_ws.run().await.unwrap() });
+        spawn_local(async move { 
+            // TODO: We probably want to report this error, or just ignore it if it's a close
+            bg_ws.run().await.unwrap() });
 
         Self(send)
     }

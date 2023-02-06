@@ -14,6 +14,7 @@ use web_sys::MessageEvent;
 
 use crate::Error;
 
+#[derive(Clone)]
 pub struct Connection(String);
 
 impl Connection {

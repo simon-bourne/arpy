@@ -15,6 +15,7 @@ use crate::Error;
 /// ```
 #[doc = include_doc::function_body!("tests/doc.rs", http_client, [my_app, MyAdd])]
 /// ```
+#[derive(Clone)]
 pub struct Connection(String);
 
 impl Connection {

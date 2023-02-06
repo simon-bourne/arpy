@@ -33,6 +33,7 @@ use thiserror::Error;
 ///     println!("1 + 2 = {result}");
 /// };
 /// ```
+#[derive(Clone)]
 pub struct Connection {
     client: Client,
     url: String,
