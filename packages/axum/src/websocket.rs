@@ -50,6 +50,7 @@ impl WebSocketHandler {
             Message::Binary(params) => Some(ControlFlow::Continue(params)),
             Message::Ping(_) => None,
             Message::Pong(_) => None,
+            // TODO: Handle close properly.
             Message::Close(_) => Some(ControlFlow::Break(())),
         }
     }
