@@ -410,6 +410,7 @@ dependencies = [
  "slotmap",
  "thiserror",
  "tokio",
+ "tracing",
 ]
 
 [[package]]

@@ -103,7 +103,10 @@ impl WebSocketRouter {
             .unwrap();
         serializer.serialize_into(&mut body, &client_id).unwrap();
 
-        result_sink.send(Ok(body)).await.unwrap();
+        result_sink
+            .send(Ok(body))
+            .await
+            .unwrap_or_else(client_disconnected);
 
         spawn(async move {
             // TODO: Cancellation
@@ -148,7 +151,10 @@ impl WebSocketRouter {
         serializer.serialize_into(&mut body, &client_id).unwrap();
         serializer.serialize_into(&mut body, &result).unwrap();
 
-        result_sink.send(Ok(body)).await.unwrap();
+        result_sink
+            .send(Ok(body))
+            .await
+            .unwrap_or_else(client_disconnected);
 
         Ok(())
     }
@@ -188,7 +194,12 @@ impl WebSocketHandler {
             Event::Incoming {
                 // Get the in-flight permit on the message stream, so we block the stream until we
                 // have a permit.
-                in_flight_permit: self.in_flight.clone().acquire_owned().await.unwrap(),
+                in_flight_permit: self
+                    .in_flight
+                    .clone()
+                    .acquire_owned()
+                    .await
+                    .expect("Semaphore was closed unexpectedly"),
                 msg,
             }
         });
@@ -208,7 +219,10 @@ impl WebSocketHandler {
                     let handler = self.clone();
                     spawn(async move {
                         if let Err(e) = handler.handle_msg(msg.as_ref(), &result_sink).await {
-                            result_sink.send(Err(e)).await.unwrap();
+                            result_sink
+                                .send(Err(e))
+                                .await
+                                .unwrap_or_else(client_disconnected);
                         }
 
                         mem::drop(in_flight_permit);
@@ -252,6 +266,10 @@ impl WebSocketHandler {
 
         function(msg, result_sink).await
     }
+}
+
+fn client_disconnected(_error: mpsc::SendError) {
+    tracing::info!("Send failed: Client disconnected.");
 }
 
 #[derive(Error, Debug)]
