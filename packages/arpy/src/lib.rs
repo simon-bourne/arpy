@@ -94,6 +94,7 @@ pub trait FnSubscription: protocol::MsgId + Serialize + DeserializeOwned + Debug
     type Item: Serialize + DeserializeOwned + Debug;
 }
 
+// TODO: Think about how to handle keep-alives/reconnecting.
 /// An RPC client.
 ///
 /// Implement this to provide an RPC client. It uses [`async_trait`] to provide
