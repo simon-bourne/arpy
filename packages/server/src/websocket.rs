@@ -229,10 +229,13 @@ impl WebSocketHandler {
                     });
                 }
                 Event::Outgoing(msg) => {
-                    let result = outgoing.send(msg?.into()).await;
+                    let is_err = outgoing
+                        .send(msg?.into())
+                        .await
+                        .map_err(client_disconnected)
+                        .is_err();
 
-                    if let Err(e) = result {
-                        tracing::info!("Connection closed: {e}");
+                    if is_err {
                         break;
                     }
                 }
@@ -272,8 +275,8 @@ impl WebSocketHandler {
     }
 }
 
-fn client_disconnected(_error: mpsc::SendError) {
-    tracing::info!("Send failed: Client disconnected.");
+fn client_disconnected(e: impl error::Error) {
+    tracing::info!("Send failed: Client disconnected ({e}).");
 }
 
 #[derive(Error, Debug)]
