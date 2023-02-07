@@ -64,7 +64,7 @@ impl Connection {
     }
 
     pub async fn close(self) {
-        self.0.send(SendMsg::Close).await.unwrap_or(());
+        self.0.send(SendMsg::Close).await.ok();
     }
 }
 
@@ -274,9 +274,7 @@ impl BackgroundWebsocket {
                 ws.send(Message::Bytes(msg)).await
             }
         }
-        .map_err(Error::send)?;
-
-        Ok(())
+        .map_err(Error::send)
     }
 }
 
