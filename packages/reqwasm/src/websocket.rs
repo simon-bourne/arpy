@@ -45,11 +45,7 @@ impl Connection {
             subscription_ids: SlotMap::new(),
         };
 
-        spawn_local(async move {
-            // TODO: We probably want to report this error, or just ignore it if it's a
-            // close
-            bg_ws.run(ws, to_send).await.unwrap()
-        });
+        spawn_local(async move { bg_ws.run(ws, to_send).await });
 
         Self(send)
     }
@@ -108,7 +104,7 @@ impl Connection {
 #[pin_project]
 pub struct SubscriptionStream<Item> {
     #[pin]
-    stream: ReceiverStream<ReceiveMsg>,
+    stream: ReceiverStream<ReceiveMsgOrError>,
     phantom: PhantomData<Item>,
 }
 
@@ -117,11 +113,14 @@ impl<Item: DeserializeOwned> Stream for SubscriptionStream<Item> {
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         match self.project().stream.poll_next(cx) {
-            Poll::Ready(msg) => Poll::Ready(msg.map(|msg| {
-                let serializer = bincode::DefaultOptions::new();
-                serializer
-                    .deserialize_from(&msg.message[msg.payload_offset..])
-                    .map_err(Error::deserialize_result)
+            Poll::Ready(msg) => Poll::Ready(msg.map(|msg| match msg {
+                Ok(msg) => {
+                    let serializer = bincode::DefaultOptions::new();
+                    serializer
+                        .deserialize_from(&msg.message[msg.payload_offset..])
+                        .map_err(Error::deserialize_result)
+                }
+                Err(err) => Err(err),
             })),
             Poll::Pending => Poll::Pending,
         }
@@ -158,7 +157,7 @@ impl ConcurrentRpcClient for Connection {
 #[pin_project]
 pub struct Call<Output> {
     #[pin]
-    recv: oneshot::Receiver<ReceiveMsg>,
+    recv: oneshot::Receiver<ReceiveMsgOrError>,
     phantom: PhantomData<Output>,
 }
 
@@ -168,8 +167,9 @@ impl<Output: DeserializeOwned> Future for Call<Output> {
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         match self.project().recv.poll(cx) {
             Poll::Ready(reply) => {
-                let reply = reply.map_err(Error::receive)?;
+                let reply = reply.map_err(Error::receive)??;
                 let serializer = bincode::DefaultOptions::new();
+
                 Poll::Ready(
                     serializer
                         .deserialize_from(&reply.message[reply.payload_offset..])
@@ -194,28 +194,38 @@ impl RpcClient for Connection {
 }
 
 struct BackgroundWebsocket {
-    msg_ids: SlotMap<DefaultKey, oneshot::Sender<ReceiveMsg>>,
-    subscription_ids: SlotMap<DefaultKey, mpsc::Sender<ReceiveMsg>>,
+    msg_ids: SlotMap<DefaultKey, oneshot::Sender<ReceiveMsgOrError>>,
+    subscription_ids: SlotMap<DefaultKey, mpsc::Sender<ReceiveMsgOrError>>,
 }
 
 impl BackgroundWebsocket {
-    async fn run(mut self, ws: WebSocket, to_send: ReceiverStream<SendMsg>) -> Result<(), Error> {
+    async fn run(mut self, ws: WebSocket, to_send: ReceiverStream<SendMsg>) {
         let (mut ws_sink, ws_stream) = ws.split();
 
         let mut ws_task_stream =
             stream_select!(ws_stream.map(WsTask::Incoming), to_send.map(WsTask::ToSend));
 
         while let Some(task) = ws_task_stream.next().await {
-            match task {
-                WsTask::Incoming(incoming) => self.receive(incoming).await?,
-                WsTask::ToSend(outgoing) => self.send(&mut ws_sink, outgoing).await?,
+            let result = match task {
+                WsTask::Incoming(incoming) => self.receive(incoming).await,
+                WsTask::ToSend(outgoing) => self.send(&mut ws_sink, outgoing).await,
+            };
+
+            if let Err(err) = result {
+                self.send_errors(err).await;
+                break;
             }
         }
+    }
 
-        // TODO: Send errors to everything
-        // TODO: Send errors to any new messages
+    async fn send_errors(self, err: Error) {
+        for (_id, notifier) in self.msg_ids {
+            notifier.send(Err(err.clone())).ok();
+        }
 
-        Ok(())
+        for (_id, notifier) in self.subscription_ids {
+            notifier.send(Err(err.clone())).await.ok();
+        }
     }
 
     async fn receive(&mut self, msg: Result<Message, WebSocketError>) -> Result<(), Error> {
@@ -244,17 +254,17 @@ impl BackgroundWebsocket {
 
                 if let Some(notifier) = self.msg_ids.remove(id) {
                     notifier
-                        .send(ReceiveMsg {
+                        .send(Ok(ReceiveMsg {
                             payload_offset,
                             message,
-                        })
+                        }))
                         .map_err(|_| Error::receive("Unable to send message to client"))?;
                 } else if let Some(subscription) = self.subscription_ids.get(id) {
                     subscription
-                        .send(ReceiveMsg {
+                        .send(Ok(ReceiveMsg {
                             payload_offset,
                             message,
-                        })
+                        }))
                         .await
                         .map_err(|_| {
                             Error::receive("Unable to send subscription message to client")
@@ -273,12 +283,12 @@ impl BackgroundWebsocket {
         MessageSink: Sink<Message, Error = WebSocketError> + Unpin,
     {
         match msg {
-            SendMsg::Close => todo!(),
+            SendMsg::Close => ws.close().await,
             SendMsg::Msg { mut msg, notify } => {
                 let serializer = bincode::DefaultOptions::new();
                 let key = self.msg_ids.insert(notify);
                 serializer.serialize_into(&mut msg, &key).unwrap();
-                ws.send(Message::Bytes(msg)).await.map_err(Error::send)?;
+                ws.send(Message::Bytes(msg)).await
             }
             SendMsg::Subscribe {
                 mut msg,
@@ -287,9 +297,10 @@ impl BackgroundWebsocket {
                 let serializer = bincode::DefaultOptions::new();
                 let key = self.subscription_ids.insert(subscription);
                 serializer.serialize_into(&mut msg, &key).unwrap();
-                ws.send(Message::Bytes(msg)).await.map_err(Error::send)?;
+                ws.send(Message::Bytes(msg)).await
             }
         }
+        .map_err(Error::send)?;
 
         Ok(())
     }
@@ -304,11 +315,11 @@ enum SendMsg {
     Close,
     Msg {
         msg: Vec<u8>,
-        notify: oneshot::Sender<ReceiveMsg>,
+        notify: oneshot::Sender<ReceiveMsgOrError>,
     },
     Subscribe {
         msg: Vec<u8>,
-        subscription: mpsc::Sender<ReceiveMsg>,
+        subscription: mpsc::Sender<ReceiveMsgOrError>,
     },
 }
 
@@ -316,3 +327,5 @@ struct ReceiveMsg {
     payload_offset: usize,
     message: Vec<u8>,
 }
+
+type ReceiveMsgOrError = Result<ReceiveMsg, Error>;

@@ -14,7 +14,7 @@ pub mod websocket;
 ///
 /// Note; This may contain sensitive information such as URLs or argument
 /// names/values.
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone)]
 pub enum Error {
     #[error("Couldn't deserialize result: {0}")]
     DeserializeResult(String),
