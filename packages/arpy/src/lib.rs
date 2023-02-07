@@ -137,6 +137,7 @@ pub trait ConcurrentRpcClient {
     /// A transport error
     type Error: Error + Debug + Send + Sync + 'static;
     type Call<Output: DeserializeOwned>: Future<Output = Result<Output, Self::Error>>;
+    type SubscriptionStream<Item: DeserializeOwned>: Stream<Item = Result<Item, Self::Error>>;
 
     /// Initiate a call, but don't wait for results until `await`ed again.
     ///
@@ -196,6 +197,13 @@ pub trait ConcurrentRpcClient {
             call: self.begin_call(function).await?,
         })
     }
+
+    async fn subscribe<S>(
+        &self,
+        service: S,
+    ) -> Result<Self::SubscriptionStream<S::Item>, Self::Error>
+    where
+        S: FnSubscription;
 }
 
 /// A future that flattens a transport and application error into an

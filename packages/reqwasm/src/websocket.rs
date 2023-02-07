@@ -51,35 +51,6 @@ impl Connection {
         Self(send)
     }
 
-    pub async fn subscribe<S>(&self, service: S) -> Result<SubscriptionStream<S::Item>, Error>
-    where
-        S: FnSubscription,
-    {
-        // TODO: Benchmark and adjust size.
-        // We use a small channel buffer as this is just to get messages to the
-        // websocket handler task.
-        let (subscription_sink, subscription_stream) = mpsc::channel(1);
-
-        self.0
-            .send(SendMsg::Subscribe {
-                msg: self.serialize_msg(service),
-                subscription: subscription_sink,
-            })
-            .await
-            .map_err(Error::send)?;
-
-        let mut subscription_stream = ReceiverStream::new(subscription_stream);
-
-        // Discard the first message. It's the reply to the subscription and will
-        // eventually contain the cancellation ID.
-        subscription_stream.next().await;
-
-        Ok(SubscriptionStream {
-            stream: subscription_stream,
-            phantom: PhantomData,
-        })
-    }
-
     fn serialize_msg<M>(&self, msg: M) -> Vec<u8>
     where
         M: protocol::MsgId + Serialize,
@@ -121,6 +92,7 @@ impl<Item: DeserializeOwned> Stream for SubscriptionStream<Item> {
 impl ConcurrentRpcClient for Connection {
     type Call<Output: DeserializeOwned> = Call<Output>;
     type Error = Error;
+    type SubscriptionStream<Item: DeserializeOwned> = SubscriptionStream<Item>;
 
     // TODO: `fn send` to send a fire and forget message
     async fn begin_call<F>(&self, function: F) -> Result<Self::Call<F::Output>, Self::Error>
@@ -139,6 +111,35 @@ impl ConcurrentRpcClient for Connection {
 
         Ok(Call {
             recv,
+            phantom: PhantomData,
+        })
+    }
+
+    async fn subscribe<S>(&self, service: S) -> Result<SubscriptionStream<S::Item>, Error>
+    where
+        S: FnSubscription,
+    {
+        // TODO: Benchmark and adjust size.
+        // We use a small channel buffer as this is just to get messages to the
+        // websocket handler task.
+        let (subscription_sink, subscription_stream) = mpsc::channel(1);
+
+        self.0
+            .send(SendMsg::Subscribe {
+                msg: self.serialize_msg(service),
+                subscription: subscription_sink,
+            })
+            .await
+            .map_err(Error::send)?;
+
+        let mut subscription_stream = ReceiverStream::new(subscription_stream);
+
+        // Discard the first message. It's the reply to the subscription and will
+        // eventually contain the cancellation ID.
+        subscription_stream.next().await;
+
+        Ok(SubscriptionStream {
+            stream: subscription_stream,
             phantom: PhantomData,
         })
     }
