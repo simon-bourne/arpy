@@ -108,10 +108,6 @@ impl WebSocketRouter {
 
         spawn(async move {
             // TODO: Cancellation
-            // TODO: We need a subscription count semaphore. This needs to be separate from
-            // the in-flight semaphore, as we still need to be able to receive cancellation
-            // requests. Need to think about the protocol, particularly around subscriptions
-            // backing up.
             while let Some(item) = items.next().await {
                 let mut body = Vec::new();
                 serialize(&mut body, &protocol::VERSION);
