@@ -197,8 +197,9 @@ impl WebSocketHandler {
             }
         });
 
-        // TODO: Pass in channel bounds
-        let (result_sink, result_stream) = mpsc::channel::<Result<Vec<u8>>>(1000);
+        // We want this to block as a message is still in-flight until it's been sent to
+        // the websocket, hence the queue size = 1.
+        let (result_sink, result_stream) = mpsc::channel::<Result<Vec<u8>>>(1);
         let result_stream = result_stream.map(Event::Outgoing);
         let mut events = stream_select!(Box::pin(incoming), result_stream);
 
