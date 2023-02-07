@@ -17,7 +17,7 @@ use reqwasm::websocket::{futures::WebSocket, Message, WebSocketError};
 use serde::{de::DeserializeOwned, Serialize};
 use slotmap::{DefaultKey, SlotMap};
 use tokio::sync::{mpsc, oneshot};
-use tokio_stream::wrappers::{ReceiverStream, UnboundedReceiverStream};
+use tokio_stream::wrappers::ReceiverStream;
 use wasm_bindgen_futures::spawn_local;
 
 use crate::Error;
@@ -58,24 +58,27 @@ impl Connection {
     where
         S: FnSubscription,
     {
-        let (subscription, recv) = mpsc::unbounded_channel();
+        // TODO: Benchmark and adjust size.
+        // We use a small channel buffer as this is just to get messages to the
+        // websocket handler task.
+        let (subscription_sink, subscription_stream) = mpsc::channel(1);
 
         self.0
             .send(SendMsg::Subscribe {
                 msg: self.serialize_msg(service),
-                subscription,
+                subscription: subscription_sink,
             })
             .await
             .map_err(Error::send)?;
 
-        let mut recv = UnboundedReceiverStream::new(recv);
+        let mut subscription_stream = ReceiverStream::new(subscription_stream);
 
         // Discard the first message. It's the reply to the subscription and will
         // eventually contain the cancellation ID.
-        recv.next().await;
+        subscription_stream.next().await;
 
         Ok(SubscriptionStream {
-            stream: recv,
+            stream: subscription_stream,
             phantom: PhantomData,
         })
     }
@@ -105,7 +108,7 @@ impl Connection {
 #[pin_project]
 pub struct SubscriptionStream<Item> {
     #[pin]
-    stream: UnboundedReceiverStream<ReceiveMsg>,
+    stream: ReceiverStream<ReceiveMsg>,
     phantom: PhantomData<Item>,
 }
 
@@ -192,7 +195,7 @@ impl RpcClient for Connection {
 
 struct BackgroundWebsocket {
     msg_ids: SlotMap<DefaultKey, oneshot::Sender<ReceiveMsg>>,
-    subscription_ids: SlotMap<DefaultKey, mpsc::UnboundedSender<ReceiveMsg>>,
+    subscription_ids: SlotMap<DefaultKey, mpsc::Sender<ReceiveMsg>>,
 }
 
 impl BackgroundWebsocket {
@@ -252,6 +255,7 @@ impl BackgroundWebsocket {
                             payload_offset,
                             message,
                         })
+                        .await
                         .map_err(|_| {
                             Error::receive("Unable to send subscription message to client")
                         })?;
@@ -304,8 +308,7 @@ enum SendMsg {
     },
     Subscribe {
         msg: Vec<u8>,
-        // TODO: This probably should be bounded.
-        subscription: mpsc::UnboundedSender<ReceiveMsg>,
+        subscription: mpsc::Sender<ReceiveMsg>,
     },
 }
 
