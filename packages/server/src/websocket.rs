@@ -75,6 +75,14 @@ impl WebSocketRouter {
         self
     }
 
+    fn serialize_msg<Msg: Serialize>(client_id: DefaultKey, msg: &Msg) -> Vec<u8> {
+        let mut body = Vec::new();
+        serialize(&mut body, &protocol::VERSION);
+        serialize(&mut body, &client_id);
+        serialize(&mut body, &msg);
+        body
+    }
+
     fn deserialize_msg<Msg: DeserializeOwned>(
         mut input: impl io::Read,
     ) -> Result<(DefaultKey, Msg)> {
@@ -97,24 +105,18 @@ impl WebSocketRouter {
 
         let mut items = Box::pin(f.run(args));
 
-        let mut body = Vec::new();
-        serialize(&mut body, &protocol::VERSION);
-        serialize(&mut body, &client_id);
-
+        let reply = Self::serialize_msg(client_id, &());
         result_sink
-            .send(Ok(body))
+            .send(Ok(reply))
             .await
             .unwrap_or_else(client_disconnected);
 
         spawn(async move {
             // TODO: Cancellation
             while let Some(item) = items.next().await {
-                let mut body = Vec::new();
-                serialize(&mut body, &protocol::VERSION);
-                serialize(&mut body, &client_id);
-                serialize(&mut body, &item);
+                let item_bytes = Self::serialize_msg(client_id, &item);
 
-                if result_sink.send(Ok(body)).await.is_err() {
+                if result_sink.send(Ok(item_bytes)).await.is_err() {
                     break;
                 }
             }
@@ -135,13 +137,10 @@ impl WebSocketRouter {
         let (client_id, args) = Self::deserialize_msg::<FSig>(input)?;
 
         let result = f.run(args).await;
-        let mut body = Vec::new();
-        serialize(&mut body, &protocol::VERSION);
-        serialize(&mut body, &client_id);
-        serialize(&mut body, &result);
+        let result_bytes = Self::serialize_msg(client_id, &result);
 
         result_sink
-            .send(Ok(body))
+            .send(Ok(result_bytes))
             .await
             .unwrap_or_else(client_disconnected);
 
