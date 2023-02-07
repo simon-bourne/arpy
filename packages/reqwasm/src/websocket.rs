@@ -11,15 +11,12 @@ use std::{
 use arpy::{protocol, ConcurrentRpcClient, FnRemote, FnSubscription, RpcClient};
 use async_trait::async_trait;
 use bincode::Options;
-use futures::{SinkExt, Stream, StreamExt};
+use futures::{stream_select, Sink, SinkExt, Stream, StreamExt};
 use pin_project::pin_project;
 use reqwasm::websocket::{futures::WebSocket, Message, WebSocketError};
 use serde::{de::DeserializeOwned, Serialize};
 use slotmap::{DefaultKey, SlotMap};
-use tokio::{
-    select,
-    sync::{mpsc, oneshot},
-};
+use tokio::sync::{mpsc, oneshot};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use wasm_bindgen_futures::spawn_local;
 
@@ -42,9 +39,8 @@ impl Connection {
         // messages (depending on the implementaiton). The queue will be no larger than
         // the number of in-flight calls.
         let (send, to_send) = mpsc::unbounded_channel::<SendMsg>();
-        let mut bg_ws = BackgroundWebsocket {
-            ws,
-            to_send,
+        let to_send = UnboundedReceiverStream::new(to_send);
+        let bg_ws = BackgroundWebsocket {
             msg_ids: SlotMap::new(),
             subscription_ids: SlotMap::new(),
         };
@@ -52,7 +48,7 @@ impl Connection {
         spawn_local(async move {
             // TODO: We probably want to report this error, or just ignore it if it's a
             // close
-            bg_ws.run().await.unwrap()
+            bg_ws.run(ws, to_send).await.unwrap()
         });
 
         Self(send)
@@ -193,28 +189,35 @@ impl RpcClient for Connection {
 }
 
 struct BackgroundWebsocket {
-    ws: WebSocket,
-    to_send: mpsc::UnboundedReceiver<SendMsg>,
     msg_ids: SlotMap<DefaultKey, oneshot::Sender<ReceiveMsg>>,
     subscription_ids: SlotMap<DefaultKey, mpsc::UnboundedSender<ReceiveMsg>>,
 }
 
 impl BackgroundWebsocket {
-    async fn run(&mut self) -> Result<(), Error> {
-        while select! {
-            incoming = self.ws.next() => self.receive(incoming).await?,
-            outgoing = self.to_send.recv() => self.send(outgoing).await?
-        } {}
+    async fn run(
+        mut self,
+        ws: WebSocket,
+        to_send: UnboundedReceiverStream<SendMsg>,
+    ) -> Result<(), Error> {
+        let (mut ws_sink, ws_stream) = ws.split();
+
+        let mut ws_task_stream =
+            stream_select!(ws_stream.map(WsTask::Incoming), to_send.map(WsTask::ToSend));
+
+        while let Some(task) = ws_task_stream.next().await {
+            match task {
+                WsTask::Incoming(incoming) => self.receive(incoming).await?,
+                WsTask::ToSend(outgoing) => self.send(&mut ws_sink, outgoing).await?,
+            }
+        }
+
+        // TODO: Send errors to everything
+        // TODO: Send errors to any new messages
 
         Ok(())
     }
 
-    async fn receive(
-        &mut self,
-        msg: Option<Result<Message, WebSocketError>>,
-    ) -> Result<bool, Error> {
-        let Some(msg) = msg else { return Ok(false) };
-
+    async fn receive(&mut self, msg: Result<Message, WebSocketError>) -> Result<(), Error> {
         match msg.map_err(Error::receive)? {
             Message::Text(_) => return Err(Error::receive("Text messages are unsupported")),
             Message::Bytes(message) => {
@@ -260,22 +263,20 @@ impl BackgroundWebsocket {
             }
         }
 
-        Ok(true)
+        Ok(())
     }
 
-    async fn send(&mut self, msg: Option<SendMsg>) -> Result<bool, Error> {
-        let Some(msg) = msg else { return Ok(false) };
-
+    async fn send<MessageSink>(&mut self, ws: &mut MessageSink, msg: SendMsg) -> Result<(), Error>
+    where
+        MessageSink: Sink<Message, Error = WebSocketError> + Unpin,
+    {
         match msg {
             SendMsg::Close => todo!(),
             SendMsg::Msg { mut msg, notify } => {
                 let serializer = bincode::DefaultOptions::new();
                 let key = self.msg_ids.insert(notify);
                 serializer.serialize_into(&mut msg, &key).unwrap();
-                self.ws
-                    .send(Message::Bytes(msg))
-                    .await
-                    .map_err(Error::send)?;
+                ws.send(Message::Bytes(msg)).await.map_err(Error::send)?;
             }
             SendMsg::Subscribe {
                 mut msg,
@@ -284,15 +285,17 @@ impl BackgroundWebsocket {
                 let serializer = bincode::DefaultOptions::new();
                 let key = self.subscription_ids.insert(subscription);
                 serializer.serialize_into(&mut msg, &key).unwrap();
-                self.ws
-                    .send(Message::Bytes(msg))
-                    .await
-                    .map_err(Error::send)?;
+                ws.send(Message::Bytes(msg)).await.map_err(Error::send)?;
             }
         }
 
-        Ok(true)
+        Ok(())
     }
+}
+
+enum WsTask {
+    Incoming(Result<Message, WebSocketError>),
+    ToSend(SendMsg),
 }
 
 enum SendMsg {
