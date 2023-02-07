@@ -94,7 +94,6 @@ impl ConcurrentRpcClient for Connection {
     type Error = Error;
     type SubscriptionStream<Item: DeserializeOwned> = SubscriptionStream<Item>;
 
-    // TODO: `fn send` to send a fire and forget message
     async fn begin_call<F>(&self, function: F) -> Result<Self::Call<F::Output>, Self::Error>
     where
         F: FnRemote,
