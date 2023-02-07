@@ -14,7 +14,7 @@ async fn main() {
     let app = Router::new()
         .http_rpc_route("/http", my_function)
         .http_rpc_route("/http", my_fallible_function)
-        .ws_rpc_route("/ws", ws)
+        .ws_rpc_route("/ws", ws, 1000)
         .layer(CorsLayer::permissive());
 
     Server::bind(&SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), PORT))

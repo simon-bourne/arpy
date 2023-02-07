@@ -34,7 +34,7 @@ where
         let ws = WebSocketRouter::new().handle(add).handle(try_multiply);
 
         App::new()
-            .ws_rpc_route("ws", ws)
+            .ws_rpc_route("ws", ws, 1000)
             .http_rpc_route("http", add)
             .http_rpc_route("http", try_multiply)
     })

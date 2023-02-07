@@ -162,13 +162,12 @@ pub struct WebSocketHandler {
 }
 
 impl WebSocketHandler {
-    pub fn new(router: WebSocketRouter) -> Arc<Self> {
-        // TODO: Semaphore count arg
+    pub fn new(router: WebSocketRouter, max_in_flight: usize) -> Arc<Self> {
         Arc::new(Self {
             runners: router.0,
             // We use a semaphore so we have a resource limit shared between all connection, but
             // each connection can maintain it's own unbounded queue of in-flight RPC calls.
-            in_flight: Arc::new(Semaphore::new(1000)),
+            in_flight: Arc::new(Semaphore::new(max_in_flight)),
         })
     }
 

@@ -13,7 +13,7 @@ async fn main() -> std::io::Result<()> {
 
         App::new()
             .wrap(Logger::default())
-            .ws_rpc_route("ws", ws)
+            .ws_rpc_route("ws", ws, 1000)
             .http_rpc_route("http", my_function)
             .http_rpc_route("http", my_fallible_function)
     })

@@ -43,5 +43,5 @@ pub fn router_example() {
 
     Router::new()
         .http_rpc_route("/http", my_add)
-        .ws_rpc_route("/ws", ws);
+        .ws_rpc_route("/ws", ws, 1000);
 }

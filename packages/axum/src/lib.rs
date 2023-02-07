@@ -42,7 +42,7 @@ pub trait RpcRoute {
         T: FnRemote + Send + Sync + 'static;
 
     /// Add all the RPC endpoints in `router` to a websocket endpoint at `path`.
-    fn ws_rpc_route(self, path: &str, router: WebSocketRouter) -> Self;
+    fn ws_rpc_route(self, path: &str, router: WebSocketRouter, max_in_flight: usize) -> Self;
 
     /// Add a Server Sent Events route.
     fn sse_route<T, S, Error>(
@@ -71,8 +71,8 @@ impl RpcRoute for Router {
         )
     }
 
-    fn ws_rpc_route(self, path: &str, router: WebSocketRouter) -> Self {
-        let handler = WebSocketHandler::new(router);
+    fn ws_rpc_route(self, path: &str, router: WebSocketRouter, max_in_flight: usize) -> Self {
+        let handler = WebSocketHandler::new(router, max_in_flight);
 
         self.route(
             path,

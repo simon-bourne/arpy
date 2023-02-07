@@ -8,8 +8,8 @@ use futures::{SinkExt, StreamExt};
 pub struct WebSocketHandler(Arc<arpy_server::WebSocketHandler>);
 
 impl WebSocketHandler {
-    pub fn new(router: WebSocketRouter) -> Self {
-        Self(arpy_server::WebSocketHandler::new(router))
+    pub fn new(router: WebSocketRouter, max_in_flight: usize) -> Self {
+        Self(arpy_server::WebSocketHandler::new(router, max_in_flight))
     }
 
     pub async fn handle_socket(&self, socket: WebSocket) {

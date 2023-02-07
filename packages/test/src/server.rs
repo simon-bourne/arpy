@@ -38,7 +38,7 @@ pub fn dev_server(port: u16) -> axum::Server<AddrIncoming, IntoMakeService<Route
         .sse_route("/sse", sse_stream, None)
         .http_rpc_route("/http", add)
         .http_rpc_route("/http", try_multiply)
-        .ws_rpc_route("/ws", ws)
+        .ws_rpc_route("/ws", ws, 1000)
         .layer(CorsLayer::permissive());
 
     Server::bind(&SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), port))

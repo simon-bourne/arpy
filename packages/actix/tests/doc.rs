@@ -39,6 +39,6 @@ pub fn router_example() {
     let ws = WebSocketRouter::new().handle(my_add);
 
     App::new()
-        .ws_rpc_route("ws", ws)
+        .ws_rpc_route("ws", ws, 1000)
         .http_rpc_route("http", my_add);
 }

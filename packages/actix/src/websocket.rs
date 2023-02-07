@@ -12,8 +12,8 @@ use futures::{sink::unfold, StreamExt};
 pub struct WebSocketHandler(Arc<arpy_server::WebSocketHandler>);
 
 impl WebSocketHandler {
-    pub fn new(handler: WebSocketRouter) -> Self {
-        Self(arpy_server::WebSocketHandler::new(handler))
+    pub fn new(handler: WebSocketRouter, max_in_flight: usize) -> Self {
+        Self(arpy_server::WebSocketHandler::new(handler, max_in_flight))
     }
 
     pub async fn handle(self, mut session: Session, incoming: MessageStream) -> Result<(), Closed> {

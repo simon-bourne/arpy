@@ -34,7 +34,7 @@ pub trait RpcApp {
         T: FnRemote + 'static;
 
     /// Add all the RPC endpoints in `router` to a websocket endpoint at `path`.
-    fn ws_rpc_route(self, path: &str, router: WebSocketRouter) -> Self;
+    fn ws_rpc_route(self, path: &str, router: WebSocketRouter, max_in_flight: usize) -> Self;
 }
 
 impl<S> RpcApp for App<S>
@@ -55,8 +55,8 @@ where
         )
     }
 
-    fn ws_rpc_route(self, path: &str, router: WebSocketRouter) -> Self {
-        let handler = WebSocketHandler::new(router);
+    fn ws_rpc_route(self, path: &str, router: WebSocketRouter, max_in_flight: usize) -> Self {
+        let handler = WebSocketHandler::new(router, max_in_flight);
         self.route(
             path,
             web::get().to(move |req: HttpRequest, body: web::Payload| {
