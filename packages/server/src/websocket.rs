@@ -162,6 +162,17 @@ pub struct WebSocketHandler {
 }
 
 impl WebSocketHandler {
+    /// Constructor.
+    ///
+    /// `max_in_flight` limits the number of RPC/Subscription calls that can be
+    /// in-flight at once. This stops clients spawning lots of tasks by blocking
+    /// the websocket.
+    ///
+    /// Subscriptions are only considered in-flight until they've sent their
+    /// initial response to the client. To limit the active subscriptions, use a
+    /// [`Semaphore`] or similar mechanism in the function that generates the
+    /// [`Stream`] and hold an [`OwnedSemaphorePermit`] permit for the life
+    /// of the stream.
     pub fn new(router: WebSocketRouter, max_in_flight: usize) -> Arc<Self> {
         Arc::new(Self {
             runners: router.0,
