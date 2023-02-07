@@ -39,14 +39,14 @@ impl<Args: FnRemote> FromRequest for ArpyRequest<Args> {
     type Future = Pin<Box<dyn Future<Output = Result<Self, Self::Error>>>>;
 
     fn from_request(req: &HttpRequest, payload: &mut actix_web::dev::Payload) -> Self::Future {
-        let content_type = mime_type(req.headers().get(CONTENT_TYPE)).unwrap();
+        let content_type = mime_type(req.headers().get(CONTENT_TYPE));
         let bytes = Bytes::from_request(req, payload);
 
         Box::pin(async move {
             let body = bytes.await?;
             let body = body.as_ref();
 
-            let args: Args = match content_type {
+            let args: Args = match content_type? {
                 MimeType::Cbor => ciborium::de::from_reader(body).map_err(ErrorBadRequest)?,
                 MimeType::Json => serde_json::from_slice(body).map_err(ErrorBadRequest)?,
                 MimeType::XwwwFormUrlencoded => {
