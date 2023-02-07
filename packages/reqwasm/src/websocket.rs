@@ -3,6 +3,7 @@
 //! See [`Connection`] for an example.
 use std::{
     future::Future,
+    io::{Read, Write},
     marker::PhantomData,
     pin::Pin,
     task::{Context, Poll},
@@ -84,14 +85,9 @@ impl Connection {
         M: protocol::MsgId + Serialize,
     {
         let mut msg_bytes = Vec::new();
-        let serializer = bincode::DefaultOptions::new();
-        serializer
-            .serialize_into(&mut msg_bytes, &protocol::VERSION)
-            .unwrap();
-        serializer
-            .serialize_into(&mut msg_bytes, M::ID.as_bytes())
-            .unwrap();
-        serializer.serialize_into(&mut msg_bytes, &msg).unwrap();
+        serialize(&mut msg_bytes, &protocol::VERSION);
+        serialize(&mut msg_bytes, M::ID.as_bytes());
+        serialize(&mut msg_bytes, &msg);
 
         msg_bytes
     }
@@ -115,9 +111,7 @@ impl<Item: DeserializeOwned> Stream for SubscriptionStream<Item> {
         self.project().stream.poll_next(cx).map(|msg| {
             msg.map(|msg| {
                 let msg = msg?;
-                bincode::DefaultOptions::new()
-                    .deserialize_from(&msg.message[msg.payload_offset..])
-                    .map_err(Error::deserialize_result)
+                deserialize(&msg.message[msg.payload_offset..])
             })
         })
     }
@@ -163,11 +157,7 @@ impl<Output: DeserializeOwned> Future for Call<Output> {
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         self.project().recv.poll(cx).map(|reply| {
             let reply = reply.map_err(Error::receive)??;
-            let serializer = bincode::DefaultOptions::new();
-
-            serializer
-                .deserialize_from(&reply.message[reply.payload_offset..])
-                .map_err(Error::deserialize_result)
+            deserialize(&reply.message[reply.payload_offset..])
         })
     }
 }
@@ -223,12 +213,9 @@ impl BackgroundWebsocket {
         match msg.map_err(Error::receive)? {
             Message::Text(_) => return Err(Error::receive("Text messages are unsupported")),
             Message::Bytes(message) => {
-                let serializer = bincode::DefaultOptions::new().allow_trailing_bytes();
                 let mut reader = message.as_slice();
 
-                let protocol_version: usize = serializer
-                    .deserialize_from(&mut reader)
-                    .map_err(Error::deserialize_result)?;
+                let protocol_version: usize = deserialize_part(&mut reader)?;
 
                 if protocol_version != protocol::VERSION {
                     return Err(Error::receive(format!(
@@ -238,9 +225,7 @@ impl BackgroundWebsocket {
                     )));
                 }
 
-                let id: DefaultKey = serializer
-                    .deserialize_from(&mut reader)
-                    .map_err(Error::deserialize_result)?;
+                let id: DefaultKey = deserialize_part(&mut reader)?;
                 let payload_offset = message.len() - reader.len();
 
                 if let Some(notifier) = self.msg_ids.remove(id) {
@@ -276,18 +261,16 @@ impl BackgroundWebsocket {
         match msg {
             SendMsg::Close => ws.close().await,
             SendMsg::Msg { mut msg, notify } => {
-                let serializer = bincode::DefaultOptions::new();
                 let key = self.msg_ids.insert(notify);
-                serializer.serialize_into(&mut msg, &key).unwrap();
+                serialize(&mut msg, &key);
                 ws.send(Message::Bytes(msg)).await
             }
             SendMsg::Subscribe {
                 mut msg,
                 subscription,
             } => {
-                let serializer = bincode::DefaultOptions::new();
                 let key = self.subscription_ids.insert(subscription);
-                serializer.serialize_into(&mut msg, &key).unwrap();
+                serialize(&mut msg, &key);
                 ws.send(Message::Bytes(msg)).await
             }
         }
@@ -320,3 +303,34 @@ struct ReceiveMsg {
 }
 
 type ReceiveMsgOrError = Result<ReceiveMsg, Error>;
+
+fn serialize<W, T>(writer: W, t: &T)
+where
+    W: Write,
+    T: Serialize + ?Sized,
+{
+    bincode::DefaultOptions::new()
+        .serialize_into(writer, t)
+        .unwrap()
+}
+
+fn deserialize<R, T>(reader: R) -> Result<T, Error>
+where
+    R: Read,
+    T: DeserializeOwned,
+{
+    bincode::DefaultOptions::new()
+        .deserialize_from(reader)
+        .map_err(Error::deserialize_result)
+}
+
+fn deserialize_part<R, T>(reader: R) -> Result<T, Error>
+where
+    R: Read,
+    T: DeserializeOwned,
+{
+    bincode::DefaultOptions::new()
+        .allow_trailing_bytes()
+        .deserialize_from(reader)
+        .map_err(Error::deserialize_result)
+}

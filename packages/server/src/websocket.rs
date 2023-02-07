@@ -2,7 +2,13 @@
 //!
 //! See the `axum` and `actix` implementations under `packages` in the
 //! repository.
-use std::{collections::HashMap, error, io, mem, result, sync::Arc};
+use std::{
+    collections::HashMap,
+    error,
+    io::{self, Read, Write},
+    mem, result,
+    sync::Arc,
+};
 
 use arpy::{protocol, FnRemote, FnSubscription};
 use bincode::Options;
@@ -11,7 +17,7 @@ use futures::{
     future::BoxFuture,
     stream_select, Sink, SinkExt, Stream, StreamExt,
 };
-use serde::de::DeserializeOwned;
+use serde::{de::DeserializeOwned, Serialize};
 use slotmap::DefaultKey;
 use thiserror::Error;
 use tokio::{
@@ -72,13 +78,8 @@ impl WebSocketRouter {
     fn deserialize_msg<Msg: DeserializeOwned>(
         mut input: impl io::Read,
     ) -> Result<(DefaultKey, Msg)> {
-        let serializer = bincode::DefaultOptions::new().allow_trailing_bytes();
-        let msg: Msg = serializer
-            .deserialize_from(&mut input)
-            .map_err(Error::Deserialization)?;
-        let client_id: DefaultKey = serializer
-            .deserialize_from(input)
-            .map_err(Error::Deserialization)?;
+        let msg: Msg = deserialize_part(&mut input)?;
+        let client_id: DefaultKey = deserialize(input)?;
         Ok((client_id, msg))
     }
 
@@ -96,12 +97,9 @@ impl WebSocketRouter {
 
         let mut items = Box::pin(f.run(args));
 
-        let serializer = bincode::DefaultOptions::new();
         let mut body = Vec::new();
-        serializer
-            .serialize_into(&mut body, &protocol::VERSION)
-            .unwrap();
-        serializer.serialize_into(&mut body, &client_id).unwrap();
+        serialize(&mut body, &protocol::VERSION);
+        serialize(&mut body, &client_id);
 
         result_sink
             .send(Ok(body))
@@ -116,11 +114,9 @@ impl WebSocketRouter {
             // backing up.
             while let Some(item) = items.next().await {
                 let mut body = Vec::new();
-                serializer
-                    .serialize_into(&mut body, &protocol::VERSION)
-                    .unwrap();
-                serializer.serialize_into(&mut body, &client_id).unwrap();
-                serializer.serialize_into(&mut body, &item).unwrap();
+                serialize(&mut body, &protocol::VERSION);
+                serialize(&mut body, &client_id);
+                serialize(&mut body, &item);
 
                 if result_sink.send(Ok(body)).await.is_err() {
                     break;
@@ -144,12 +140,9 @@ impl WebSocketRouter {
 
         let result = f.run(args).await;
         let mut body = Vec::new();
-        let serializer = bincode::DefaultOptions::new();
-        serializer
-            .serialize_into(&mut body, &protocol::VERSION)
-            .unwrap();
-        serializer.serialize_into(&mut body, &client_id).unwrap();
-        serializer.serialize_into(&mut body, &result).unwrap();
+        serialize(&mut body, &protocol::VERSION);
+        serialize(&mut body, &client_id);
+        serialize(&mut body, &result);
 
         result_sink
             .send(Ok(body))
@@ -251,10 +244,7 @@ impl WebSocketHandler {
     /// implementation. Prefer using [`Self::handle_socket`] if it's general
     /// enough.
     pub async fn handle_msg(&self, mut msg: &[u8], result_sink: &ResultSink) -> Result<()> {
-        let serializer = bincode::DefaultOptions::new().allow_trailing_bytes();
-        let protocol_version: usize = serializer
-            .deserialize_from(&mut msg)
-            .map_err(Error::Deserialization)?;
+        let protocol_version: usize = deserialize_part(&mut msg)?;
 
         if protocol_version != protocol::VERSION {
             return Err(Error::Protocol(format!(
@@ -264,9 +254,7 @@ impl WebSocketHandler {
             )));
         }
 
-        let id: Vec<u8> = serializer
-            .deserialize_from(&mut msg)
-            .map_err(Error::Deserialization)?;
+        let id: Vec<u8> = deserialize_part(&mut msg)?;
 
         let Some(function) = self.runners.get(&id)
         else { return Err(Error::FunctionNotFound) };
@@ -302,4 +290,35 @@ enum Event<Incoming> {
         msg: Incoming,
     },
     Outgoing(Result<Vec<u8>>),
+}
+
+fn serialize<W, T>(writer: W, t: &T)
+where
+    W: Write,
+    T: Serialize + ?Sized,
+{
+    bincode::DefaultOptions::new()
+        .serialize_into(writer, t)
+        .unwrap()
+}
+
+fn deserialize<R, T>(reader: R) -> Result<T>
+where
+    R: Read,
+    T: DeserializeOwned,
+{
+    bincode::DefaultOptions::new()
+        .deserialize_from(reader)
+        .map_err(Error::Deserialization)
+}
+
+fn deserialize_part<R, T>(reader: R) -> Result<T>
+where
+    R: Read,
+    T: DeserializeOwned,
+{
+    bincode::DefaultOptions::new()
+        .allow_trailing_bytes()
+        .deserialize_from(reader)
+        .map_err(Error::Deserialization)
 }
