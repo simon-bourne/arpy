@@ -220,14 +220,11 @@ where
     type Output = Result<Success, ErrorFrom<Client::Error, Error>>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        match self.project().call.poll(cx) {
-            Poll::Ready(reply) => Poll::Ready(match reply {
-                Ok(Ok(ok)) => Ok(ok),
-                Ok(Err(e)) => Err(ErrorFrom::Application(e)),
-                Err(e) => Err(ErrorFrom::Transport(e)),
-            }),
-            Poll::Pending => Poll::Pending,
-        }
+        self.project().call.poll(cx).map(|reply| {
+            reply
+                .map_err(ErrorFrom::Transport)?
+                .map_err(ErrorFrom::Application)
+        })
     }
 }
 

@@ -55,13 +55,12 @@ impl<Item: DeserializeOwned> Stream for SubscriptionMessage<Item> {
     type Item = Result<Item, Error>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Option<Self::Item>> {
-        match self.project().subscription.poll_next(cx) {
-            Poll::Ready(result) => Poll::Ready(result.map(|result| match result {
-                Ok((_id, msg)) => deserialize_message(&msg),
-                Err(e) => Err(Error::receive(e)),
-            })),
-            Poll::Pending => Poll::Pending,
-        }
+        self.project().subscription.poll_next(cx).map(|result| {
+            result.map(|result| {
+                let (_id, msg) = result.map_err(Error::receive)?;
+                deserialize_message(&msg)
+            })
+        })
     }
 }
 

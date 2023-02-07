@@ -112,18 +112,14 @@ impl<Item: DeserializeOwned> Stream for SubscriptionStream<Item> {
     type Item = Result<Item, Error>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        match self.project().stream.poll_next(cx) {
-            Poll::Ready(msg) => Poll::Ready(msg.map(|msg| match msg {
-                Ok(msg) => {
-                    let serializer = bincode::DefaultOptions::new();
-                    serializer
-                        .deserialize_from(&msg.message[msg.payload_offset..])
-                        .map_err(Error::deserialize_result)
-                }
-                Err(err) => Err(err),
-            })),
-            Poll::Pending => Poll::Pending,
-        }
+        self.project().stream.poll_next(cx).map(|msg| {
+            msg.map(|msg| {
+                let msg = msg?;
+                bincode::DefaultOptions::new()
+                    .deserialize_from(&msg.message[msg.payload_offset..])
+                    .map_err(Error::deserialize_result)
+            })
+        })
     }
 }
 
@@ -165,19 +161,14 @@ impl<Output: DeserializeOwned> Future for Call<Output> {
     type Output = Result<Output, Error>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        match self.project().recv.poll(cx) {
-            Poll::Ready(reply) => {
-                let reply = reply.map_err(Error::receive)??;
-                let serializer = bincode::DefaultOptions::new();
+        self.project().recv.poll(cx).map(|reply| {
+            let reply = reply.map_err(Error::receive)??;
+            let serializer = bincode::DefaultOptions::new();
 
-                Poll::Ready(
-                    serializer
-                        .deserialize_from(&reply.message[reply.payload_offset..])
-                        .map_err(Error::deserialize_result),
-                )
-            }
-            Poll::Pending => Poll::Pending,
-        }
+            serializer
+                .deserialize_from(&reply.message[reply.payload_offset..])
+                .map_err(Error::deserialize_result)
+        })
     }
 }
 
