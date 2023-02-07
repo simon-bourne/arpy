@@ -17,7 +17,7 @@ use reqwasm::websocket::{futures::WebSocket, Message, WebSocketError};
 use serde::{de::DeserializeOwned, Serialize};
 use slotmap::{DefaultKey, SlotMap};
 use tokio::sync::{mpsc, oneshot};
-use tokio_stream::wrappers::UnboundedReceiverStream;
+use tokio_stream::wrappers::{ReceiverStream, UnboundedReceiverStream};
 use wasm_bindgen_futures::spawn_local;
 
 use crate::Error;
@@ -30,16 +30,16 @@ use crate::Error;
 #[doc = include_doc::function_body!("tests/doc.rs", websocket_client, [my_app, MyAdd])]
 /// ```
 #[derive(Clone)]
-pub struct Connection(mpsc::UnboundedSender<SendMsg>);
+pub struct Connection(mpsc::Sender<SendMsg>);
 
 impl Connection {
     /// Constructor.
     pub fn new(ws: WebSocket) -> Self {
-        // We use an `unbounded_channel` because bounding could cause deadlocks or lost
-        // messages (depending on the implementaiton). The queue will be no larger than
-        // the number of in-flight calls.
-        let (send, to_send) = mpsc::unbounded_channel::<SendMsg>();
-        let to_send = UnboundedReceiverStream::new(to_send);
+        // TODO: Benchmark and see if make capacity > 1 improves perf.
+        // This is to send messages to the websocket. We want this to block when we
+        // can't send to the websocket, hence the small capacity.
+        let (send, to_send) = mpsc::channel::<SendMsg>(1);
+        let to_send = ReceiverStream::new(to_send);
         let bg_ws = BackgroundWebsocket {
             msg_ids: SlotMap::new(),
             subscription_ids: SlotMap::new(),
@@ -65,6 +65,7 @@ impl Connection {
                 msg: self.serialize_msg(service),
                 subscription,
             })
+            .await
             .map_err(Error::send)?;
 
         let mut recv = UnboundedReceiverStream::new(recv);
@@ -97,7 +98,7 @@ impl Connection {
     }
 
     pub async fn close(self) {
-        self.0.send(SendMsg::Close).unwrap_or(());
+        self.0.send(SendMsg::Close).await.unwrap_or(());
     }
 }
 
@@ -141,6 +142,7 @@ impl ConcurrentRpcClient for Connection {
                 msg: self.serialize_msg(function),
                 notify,
             })
+            .await
             .map_err(Error::send)?;
 
         Ok(Call {
@@ -194,11 +196,7 @@ struct BackgroundWebsocket {
 }
 
 impl BackgroundWebsocket {
-    async fn run(
-        mut self,
-        ws: WebSocket,
-        to_send: UnboundedReceiverStream<SendMsg>,
-    ) -> Result<(), Error> {
+    async fn run(mut self, ws: WebSocket, to_send: ReceiverStream<SendMsg>) -> Result<(), Error> {
         let (mut ws_sink, ws_stream) = ws.split();
 
         let mut ws_task_stream =
