@@ -23,15 +23,18 @@ use thiserror::Error;
 /// A remote procedure.
 ///
 /// This defines the signature of an RPC call, which can then be used by the
-/// client or the server.
+/// client or the server. The data items in the implementor are the parameters
+/// to the remote call.
 #[async_trait(?Send)]
 pub trait FnRemote: protocol::MsgId + Serialize + DeserializeOwned + Debug {
     /// The return type.
     type Output: Serialize + DeserializeOwned + Debug;
 
-    /// The default implementation defers to [`RpcClient::call`].
+    /// Allow `function.call(connection)` instead of
+    /// `connection.call(function)`.
     ///
-    /// You shouldn't need to implement this.
+    /// The default implementation defers to [`RpcClient::call`]. You shouldn't
+    /// need to implement this.
     async fn call<C>(self, connection: &C) -> Result<Self::Output, C::Error>
     where
         C: RpcClient,
@@ -39,10 +42,12 @@ pub trait FnRemote: protocol::MsgId + Serialize + DeserializeOwned + Debug {
         connection.call(self).await
     }
 
-    /// The default implementation defers to
-    /// [`ConcurrentRpcClient::begin_call`].
+    /// Allow `function.call(connection)` instead of
+    /// `connection.call(function)`.
     ///
-    /// You shouldn't need to implement this.
+    /// The default implementation defers to
+    /// [`ConcurrentRpcClient::begin_call`]. You shouldn't need to implement
+    /// this.
     async fn begin_call<C>(self, connection: &C) -> Result<C::Call<Self::Output>, C::Error>
     where
         C: ConcurrentRpcClient,
@@ -56,9 +61,11 @@ pub trait FnRemote: protocol::MsgId + Serialize + DeserializeOwned + Debug {
 /// A blanket implementation is provided for any `T: FnRemote`.
 #[async_trait(?Send)]
 pub trait FnTryRemote<Success, Error>: FnRemote<Output = Result<Success, Error>> {
-    /// The default implementation defers to [`RpcClient::try_call`].
+    /// Allow `function.call(connection)` instead of
+    /// `connection.call(function)`.
     ///
-    /// You shouldn't need to implement this.
+    /// The default implementation defers to [`RpcClient::try_call`]. You
+    /// shouldn't need to implement this.
     async fn try_call<C>(self, connection: &C) -> Result<Success, ErrorFrom<C::Error, Error>>
     where
         C: RpcClient,
@@ -66,10 +73,12 @@ pub trait FnTryRemote<Success, Error>: FnRemote<Output = Result<Success, Error>>
         connection.try_call(self).await
     }
 
-    /// The default implementation defers to
-    /// [`ConcurrentRpcClient::try_begin_call`].
+    /// Allow `function.call(connection)` instead of
+    /// `connection.call(function)`.
     ///
-    /// You shouldn't need to implement this.
+    /// The default implementation defers to
+    /// [`ConcurrentRpcClient::try_begin_call`]. You shouldn't need to implement
+    /// this.
     async fn try_begin_call<C>(self, connection: &C) -> Result<TryCall<Success, Error, C>, C::Error>
     where
         Self: Sized,
@@ -86,8 +95,11 @@ impl<Success, Error, T> FnTryRemote<Success, Error> for T where
 {
 }
 
+/// A parameterized subscription.
+///
+/// The data items in the implementor are the parameters to the subscription.
 pub trait FnSubscription: protocol::MsgId + Serialize + DeserializeOwned + Debug {
-    /// The return type.
+    /// The subscription will give you back a stream of `Item`.
     type Item: Serialize + DeserializeOwned + Debug;
 }
 
@@ -133,7 +145,8 @@ pub trait ConcurrentRpcClient {
     /// A transport error
     type Error: Error + Debug + Send + Sync + 'static;
     type Call<Output: DeserializeOwned>: Future<Output = Result<Output, Self::Error>>;
-    type SubscriptionStream<Item: DeserializeOwned>: Stream<Item = Result<Item, Self::Error>>;
+    type SubscriptionStream<Item: DeserializeOwned>: Stream<Item = Result<Item, Self::Error>>
+        + Unpin;
 
     /// Initiate a call, but don't wait for results until `await`ed again.
     ///
@@ -153,7 +166,7 @@ pub trait ConcurrentRpcClient {
     /// # use arpy::{ConcurrentRpcClient, FnRemote, MsgId};
     /// # use serde::{Serialize, Deserialize};
     /// # use std::future::Ready;
-    ///
+    /// #
     /// #[derive(MsgId, Serialize, Deserialize, Debug)]
     /// struct MyAdd(u32, u32);
     ///
@@ -194,6 +207,33 @@ pub trait ConcurrentRpcClient {
         })
     }
 
+    /// Subscripte to a stream of `S::Item`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use arpy::{ConcurrentRpcClient, FnSubscription, MsgId};
+    /// # use serde::{Serialize, Deserialize};
+    /// # use std::future::Ready;
+    /// # use futures::StreamExt;
+    /// #
+    /// #[derive(MsgId, Serialize, Deserialize, Debug)]
+    /// struct MyCounter {
+    ///     start_at: i32,
+    /// }
+    ///
+    /// impl FnSubscription for MyCounter {
+    ///     type Item = i32;
+    /// }
+    ///
+    /// async fn example(conn: impl ConcurrentRpcClient) {
+    ///     let mut subscription = conn.subscribe(MyCounter { start_at: 10 }).await.unwrap();
+    ///
+    ///     while let Some(count) = subscription.next().await {
+    ///         println!("{}", count.unwrap());
+    ///     }
+    /// }
+    /// ```
     async fn subscribe<S>(
         &self,
         service: S,
@@ -202,8 +242,9 @@ pub trait ConcurrentRpcClient {
         S: FnSubscription;
 }
 
-/// A future that flattens a transport and application error into an
-/// [`ErrorFrom`].
+/// The [`Future`] returned from [`ConcurrentRpcClient::try_begin_call`].
+///
+/// Flattens a transport and application error into an [`ErrorFrom`].
 #[pin_project]
 pub struct TryCall<Success, Error, Client>
 where
@@ -256,8 +297,12 @@ pub enum ErrorFrom<C, S> {
     Application(S),
 }
 
-/// Uniquely identify a message type.
+/// Protocol related utilities.
 pub mod protocol {
+    /// The protocol version.
+    ///
+    /// This is this first item in every message and is checked when reading
+    /// each message.
     pub const VERSION: usize = 0;
 
     /// This should be `derive`d with [`crate::MsgId`].

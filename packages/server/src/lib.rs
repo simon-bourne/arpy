@@ -35,6 +35,12 @@ where
     }
 }
 
+/// An implementation of a subscription service.
+///
+/// You shouldn't need to implement this, as a blanket implementation is
+/// provided for any `async` function or closure that takes a single
+/// [`FnSubscription`] argument and returns a stream of
+/// [`FnSubscription::Item`].
 pub trait FnSubscriptionBody<Args>
 where
     Args: FnSubscription,

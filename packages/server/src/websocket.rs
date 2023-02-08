@@ -56,6 +56,7 @@ impl WebSocketRouter {
         self
     }
 
+    /// Add a handler for any subscriptions to `FSig`.
     pub fn handle_subscription<F, FSig>(mut self, f: F) -> Self
     where
         F: FnSubscriptionBody<FSig> + Send + Sync + 'static,
