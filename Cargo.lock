@@ -339,6 +339,7 @@ dependencies = [
  "arpy",
  "futures",
  "serde",
+ "tokio-stream",
 ]
 
 [[package]]
@@ -349,6 +350,7 @@ dependencies = [
  "arpy",
  "arpy-example-common",
  "arpy-reqwasm",
+ "console_error_panic_hook",
  "futures",
  "gloo-console",
  "wasm-bindgen-futures",

@@ -32,12 +32,11 @@ impl ServerSentEvents for Connection {
     where
         T: DeserializeOwned + protocol::MsgId,
     {
-        let subscription = EventSource::new(&self.0)
-            .map_err(Error::send)?
-            .subscribe(T::ID)
-            .map_err(Error::send)?;
+        let mut source = EventSource::new(&self.0).map_err(Error::send)?;
+        let subscription = source.subscribe(T::ID).map_err(Error::send)?;
 
         Ok(SubscriptionMessage {
+            source,
             subscription,
             phantom: PhantomData,
         })
@@ -46,6 +45,7 @@ impl ServerSentEvents for Connection {
 
 #[pin_project]
 pub struct SubscriptionMessage<Item> {
+    source: EventSource,
     #[pin]
     subscription: EventSourceSubscription,
     phantom: PhantomData<Item>,

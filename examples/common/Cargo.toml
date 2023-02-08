@@ -8,3 +8,4 @@ publish = false
 arpy = { path = "../../packages/arpy" }
 futures = "0.3.26"
 serde = { version = "1.0.152", features = ["derive"] }
+tokio-stream = "0.1.11"

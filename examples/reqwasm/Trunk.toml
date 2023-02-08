@@ -1,4 +1,0 @@
-[[proxy]]
-# This is to avoid CORS problems with SSE
-backend = "http://localhost:9090/"
-rewrite = "/api/"

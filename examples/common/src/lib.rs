@@ -1,8 +1,9 @@
-use std::convert::Infallible;
+use std::{convert::Infallible, time::Duration};
 
 use arpy::{FnRemote, MsgId};
 use futures::{stream, Stream};
 use serde::{Deserialize, Serialize};
+use tokio_stream::StreamExt;
 
 pub const PORT: u16 = 9090;
 
@@ -33,8 +34,8 @@ pub async fn my_fallible_function(args: MyFallibleFunction) -> Result<String, St
 }
 
 #[derive(MsgId, Serialize, Deserialize, Debug)]
-pub struct Name(pub String);
+pub struct Count(pub i32);
 
-pub fn name_stream() -> impl Stream<Item = Result<Name, Infallible>> {
-    stream::iter(["Rita", "Sue", "Bob"].map(|name| Ok(Name(name.to_string()))))
+pub fn counter_stream() -> impl Stream<Item = Result<Count, Infallible>> {
+    stream::iter((0..).map(|count| Ok(Count(count)))).throttle(Duration::from_secs(1))
 }

@@ -1,7 +1,7 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use arpy_axum::RpcRoute;
-use arpy_example_common::{my_fallible_function, my_function, name_stream, PORT};
+use arpy_example_common::{counter_stream, my_fallible_function, my_function, PORT};
 use arpy_server::WebSocketRouter;
 use axum::{Router, Server};
 use tower_http::cors::CorsLayer;
@@ -20,7 +20,7 @@ async fn main() {
         .handle(my_function)
         .handle(my_fallible_function);
     let app = Router::new()
-        .sse_route("/sse", name_stream, None)
+        .sse_route("/sse", counter_stream, None)
         .http_rpc_route("/http", my_function)
         .http_rpc_route("/http", my_fallible_function)
         .ws_rpc_route("/ws", ws, 1000)
