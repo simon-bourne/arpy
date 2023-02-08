@@ -1,6 +1,6 @@
 //! These tests are run from `provide_server`
-use arpy::{ConcurrentRpcClient, FnRemote, FnTryRemote};
-use arpy_reqwasm::{http, websocket};
+use arpy::{ConcurrentRpcClient, FnRemote, FnTryRemote, ServerSentEvents};
+use arpy_reqwasm::{eventsource, http, websocket};
 use arpy_test::{Add, Counter, TryMultiply, PORT};
 use futures::StreamExt;
 use reqwasm::websocket::futures::WebSocket;
@@ -13,6 +13,17 @@ async fn simple_http() {
     let connection = http::Connection::new(&server_url("http", "http"));
 
     assert_eq!(3, Add(1, 2).call(&connection).await.unwrap());
+}
+
+#[wasm_bindgen_test]
+async fn sse() {
+    let connection = eventsource::Connection::new(server_url("http", "sse"));
+
+    let mut counter = connection.subscribe::<Counter>().await.unwrap();
+
+    for i in 0..10 {
+        assert_eq!(i, counter.next().await.unwrap().unwrap().0);
+    }
 }
 
 #[wasm_bindgen_test]
