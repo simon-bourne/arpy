@@ -7,6 +7,10 @@
 
 Define your RPC signatures, and use them with various client/server implementations.
 
+## Project Status
+
+Arpy is in it's infancy, and not well tested yet.
+
 ## Transport Implementations
 
 [Reqwest] and [Reqwasm] clients are available, along with [Axum] and [Actix] servers.
@@ -66,6 +70,13 @@ let result = Add(1, 2).call(&connection).await?;
 
 assert_eq!(3, result);
 ```
+
+## Other Features
+
+- Websockets support, including:
+  - multiple in flight RPC calls
+  - parameterized subscriptions
+- Server sent events
 
 [Reqwest]: https://github.com/seanmonstar/reqwest
 [Reqwasm]: https://github.com/hamza1311/reqwasm
