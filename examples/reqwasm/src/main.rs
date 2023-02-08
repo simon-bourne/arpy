@@ -2,7 +2,7 @@ use arpy::{FnRemote, ServerSentEvents};
 use arpy_example_common::{MyFunction, Name};
 use arpy_reqwasm::{eventsource, http};
 use futures::StreamExt;
-use gloo_console::{error, info, log};
+use gloo_console::{error, info};
 use wasm_bindgen_futures::spawn_local;
 
 fn main() {
@@ -23,7 +23,7 @@ async fn http() -> anyhow::Result<()> {
     let conn = http::Connection::new("/api/http");
 
     let greeting = MyFunction("Arpy".to_string()).call(&conn).await?;
-    log!(greeting);
+    info!(greeting);
 
     Ok(())
 }
@@ -35,7 +35,7 @@ async fn sse() -> anyhow::Result<()> {
     let mut names = events.subscribe::<Name>().await?;
 
     while let Some(name) = names.next().await {
-        log!(name?.0);
+        info!(name?.0);
     }
 
     Ok(())
