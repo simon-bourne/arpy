@@ -1,0 +1,15 @@
+[package]
+name = "arpy-example-reqwasm"
+version = "0.1.0"
+authors = ["Simon Bourne <simonbourne@gmail.com>"]
+edition = "2021"
+publish = false
+
+[dependencies]
+arpy = { path = "../../packages/arpy" }
+arpy-reqwasm = { path = "../../packages/reqwasm" }
+arpy-example-common = { path = "../common" }
+gloo-console = "0.2.3"
+wasm-bindgen-futures = "0.4.34"
+anyhow = "1.0.69"
+futures = "0.3.26"

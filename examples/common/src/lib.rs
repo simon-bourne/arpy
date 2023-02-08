@@ -1,4 +1,7 @@
+use std::convert::Infallible;
+
 use arpy::{FnRemote, MsgId};
+use futures::{stream, Stream};
 use serde::{Deserialize, Serialize};
 
 pub const PORT: u16 = 9090;
@@ -27,4 +30,11 @@ pub async fn my_fallible_function(args: MyFallibleFunction) -> Result<String, St
     } else {
         Ok(format!("Hello, {}", args.0))
     }
+}
+
+#[derive(MsgId, Serialize, Deserialize, Debug)]
+pub struct Name(pub String);
+
+pub fn name_stream() -> impl Stream<Item = Result<Name, Infallible>> {
+    stream::iter(["Rita", "Sue", "Bob"].map(|name| Ok(Name(name.to_string()))))
 }

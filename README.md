@@ -76,7 +76,7 @@ assert_eq!(3, result);
 - Websockets support, including:
   - multiple in flight RPC calls
   - parameterized subscriptions
-- Server sent events
+- Server sent events: WIP
 
 [Reqwest]: https://github.com/seanmonstar/reqwest
 [Reqwasm]: https://github.com/hamza1311/reqwasm

@@ -249,9 +249,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.68"
+version = "1.0.69"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2cb2f989d18dd141ab8ae82f64d1a8cdd37e0840f73a406896cf5e99502fab61"
+checksum = "224afbd727c3d6e4b90103ece64b8d1b67fbb1973b1046c2281eed3f3803f800"
 
 [[package]]
 name = "arpy"
@@ -328,6 +328,8 @@ dependencies = [
  "axum",
  "tokio",
  "tower-http",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -335,7 +337,21 @@ name = "arpy-example-common"
 version = "0.1.0"
 dependencies = [
  "arpy",
+ "futures",
  "serde",
+]
+
+[[package]]
+name = "arpy-example-reqwasm"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "arpy",
+ "arpy-example-common",
+ "arpy-reqwasm",
+ "futures",
+ "gloo-console",
+ "wasm-bindgen-futures",
 ]
 
 [[package]]
@@ -969,6 +985,19 @@ dependencies = [
  "cfg-if",
  "libc",
  "wasi",
+]
+
+[[package]]
+name = "gloo-console"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "82b7ce3c05debe147233596904981848862b068862e9ec3e34be446077190d3f"
+dependencies = [
+ "gloo-utils",
+ "js-sys",
+ "serde",
+ "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]
