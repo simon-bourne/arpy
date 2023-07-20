@@ -1,7 +1,8 @@
 [package]
 name = "arpy-example-actix"
-version = "0.1.0"
-edition = "2021"
+version = { workspace = true }
+edition = { workspace = true }
+publish = false
 
 [dependencies]
 actix-web = "4.3.0"

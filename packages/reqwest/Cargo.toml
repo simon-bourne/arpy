@@ -1,12 +1,12 @@
 [package]
 name = "arpy-reqwest"
-version = "0.1.0"
-edition = "2021"
-authors = ["Simon Bourne <simonbourne@gmail.com>"]
-homepage = "https://github.com/simon-bourne/arpy"
-repository = "https://github.com/simon-bourne/arpy"
-readme = "../../README.md"
-license = "MIT OR Apache-2.0"
+version = { workspace = true }
+edition = { workspace = true }
+authors = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
+readme = { workspace = true }
+license = { workspace = true }
 description = "Reqwest client for the Arpy RPC library"
 keywords = ["RPC", "web"]
 categories = [
