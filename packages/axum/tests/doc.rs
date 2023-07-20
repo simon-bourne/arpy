@@ -23,25 +23,25 @@ async fn my_handler(ArpyRequest(args): ArpyRequest<MyAdd>) -> impl IntoResponse 
     ArpyResponse::new(MimeType::Cbor, args.0 + args.1)
 }
 
-pub fn extractor_example() {
-    Router::<()>::new().route("/api/my-add", post(my_handler));
+pub fn extractor_example() -> Router {
+    Router::<()>::new().route("/api/my-add", post(my_handler))
 }
 
 async fn my_add(args: MyAdd) -> u32 {
     args.0 + args.1
 }
 
-pub fn handler_example() {
+pub fn handler_example() -> Router {
     Router::<()>::new().route(
         "/api/my-add",
         post(|headers, args| handler(headers, args, Arc::new(my_add))),
-    );
+    )
 }
 
-pub fn router_example() {
+pub fn router_example() -> Router {
     let ws = WebSocketRouter::new().handle(my_add);
 
     Router::new()
         .http_rpc_route("/http", my_add)
-        .ws_rpc_route("/ws", ws, 1000);
+        .ws_rpc_route("/ws", ws, 1000)
 }
