@@ -18,17 +18,13 @@ async fn my_app<Conn: RpcClient>(conn: &mut Conn) -> Result<(), Conn::Error> {
     Ok(())
 }
 
-#[allow(unused_must_use)]
-pub fn http_client() {
-    async {
-        my_app(&mut http::Connection::new("http://127.0.0.1:9090/api/http"));
-    };
+pub async fn http_client() {
+    my_app(&mut http::Connection::new("http://127.0.0.1:9090/api/http"))
+        .await
+        .unwrap();
 }
 
-#[allow(unused_must_use)]
-pub fn websocket_client() {
-    async {
-        let ws = WebSocket::open("ws://127.0.0.1:9090/api/ws").unwrap();
-        my_app(&mut websocket::Connection::new(ws));
-    };
+pub async fn websocket_client() {
+    let ws = WebSocket::open("ws://127.0.0.1:9090/api/ws").unwrap();
+    my_app(&mut websocket::Connection::new(ws)).await.unwrap();
 }
