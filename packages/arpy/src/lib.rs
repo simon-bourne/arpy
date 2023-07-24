@@ -306,6 +306,8 @@ pub enum ErrorFrom<C, S> {
 
 /// Protocol related utilities.
 pub mod protocol {
+    use serde::{Deserialize, Serialize};
+
     /// The protocol version.
     ///
     /// This is this first item in every message and is checked when reading
@@ -317,6 +319,12 @@ pub mod protocol {
         /// `ID` should be a short identifier to uniquely identify a message
         /// type on a server.
         const ID: &'static str;
+    }
+
+    #[derive(Serialize, Deserialize)]
+    pub enum SubscriptionControl {
+        New,
+        Update,
     }
 }
 

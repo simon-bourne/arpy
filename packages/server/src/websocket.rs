@@ -10,7 +10,10 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use arpy::{protocol, FnRemote, FnSubscription};
+use arpy::{
+    protocol::{self, SubscriptionControl},
+    FnRemote, FnSubscription,
+};
 use bincode::Options;
 use futures::{
     channel::mpsc::{self, Sender},
@@ -117,20 +120,29 @@ impl WebSocketRouter {
         FSig::Update: Send + Sync + 'static,
     {
         let client_id: DefaultKey = deserialize_part(&mut input)?;
+        let control: SubscriptionControl = deserialize_part(&mut input)?;
 
-        let update_sink = subscription_updates
-            .read()
-            .unwrap()
-            .get(&client_id)
-            .cloned();
+        match control {
+            SubscriptionControl::New => {
+                let args = deserialize(input)?;
+                Self::run_subscription(f, client_id, subscription_updates, args, result_sink)
+                    .await?;
+            }
+            SubscriptionControl::Update => {
+                let mut update_sink = subscription_updates
+                    .read()
+                    .unwrap()
+                    .get(&client_id)
+                    .cloned()
+                    .ok_or_else(|| {
+                        Error::Protocol(format!("Unknown subscription {client_id:?}"))
+                    })?;
 
-        if let Some(mut update_sink) = update_sink {
-            update_sink
-                .send(input.to_vec())
-                .await
-                .map_err(|e| Error::Protocol(format!("Subcription closed: {e}")))?;
-        } else {
-            Self::run_subscription(f, client_id, subscription_updates, input, result_sink).await?;
+                update_sink
+                    .send(input.to_vec())
+                    .await
+                    .map_err(|e| Error::Protocol(format!("Subcription closed: {e}")))?;
+            }
         }
 
         Ok(())
@@ -140,7 +152,7 @@ impl WebSocketRouter {
         f: Arc<F>,
         client_id: DefaultKey,
         subscription_updates: SubscriptionUpdates,
-        input: &[u8],
+        args: FSig,
         mut result_sink: ResultSink,
     ) -> Result<()>
     where
@@ -149,7 +161,6 @@ impl WebSocketRouter {
         FSig::Item: Send + Sync + 'static,
         FSig::Update: Send + Sync + 'static,
     {
-        let args: FSig = deserialize(input)?;
         let (update_sink, update_stream) = mpsc::channel::<Vec<u8>>(1);
 
         subscription_updates

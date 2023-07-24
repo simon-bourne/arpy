@@ -69,7 +69,10 @@ async fn websocket_subscription() {
 async fn websocket_subscription_updates() {
     let connection = websocket();
 
-    let stream = connection.subscribe(AddN(1), stream::iter(0..10)).await.unwrap();
+    let stream = connection
+        .subscribe(AddN(1), stream::iter(0..10))
+        .await
+        .unwrap();
 
     assert_eq!(
         stream

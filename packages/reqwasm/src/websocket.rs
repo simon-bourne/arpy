@@ -11,7 +11,10 @@ use std::{
     task::{Context, Poll},
 };
 
-use arpy::{protocol, ConcurrentRpcClient, FnRemote, FnSubscription, RpcClient};
+use arpy::{
+    protocol::{self, SubscriptionControl},
+    ConcurrentRpcClient, FnRemote, FnSubscription, RpcClient,
+};
 use async_trait::async_trait;
 use bincode::Options;
 use futures::{stream_select, Sink, SinkExt, Stream, StreamExt};
@@ -63,13 +66,14 @@ impl Connection {
         }
     }
 
-    fn serialize_msg<M>(client_id: DefaultKey, msg: M) -> Vec<u8>
+    fn serialize_msg<T, M>(client_id: DefaultKey, msg: M) -> Vec<u8>
     where
-        M: protocol::MsgId + Serialize,
+        T: protocol::MsgId,
+        M: Serialize,
     {
         let mut msg_bytes = Vec::new();
         serialize(&mut msg_bytes, &protocol::VERSION);
-        serialize(&mut msg_bytes, M::ID.as_bytes());
+        serialize(&mut msg_bytes, T::ID.as_bytes());
         serialize(&mut msg_bytes, &client_id);
         serialize(&mut msg_bytes, &msg);
 
@@ -115,7 +119,9 @@ impl ConcurrentRpcClient for Connection {
         let client_id = self.msg_ids.borrow_mut().insert(notify);
 
         self.sender
-            .send(SendMsg::Msg(Self::serialize_msg(client_id, function)))
+            .send(SendMsg::Msg(Self::serialize_msg::<F, _>(
+                client_id, function,
+            )))
             .await
             .map_err(Error::send)?;
 
@@ -140,9 +146,11 @@ impl ConcurrentRpcClient for Connection {
 
         // TODO: Cleanup `subscription_ids`
         let client_id = self.subscription_ids.borrow_mut().insert(subscription_sink);
+        let mut msg = Self::serialize_msg::<S, _>(client_id, SubscriptionControl::New);
+        serialize(&mut msg, &service);
 
         self.sender
-            .send(SendMsg::Msg(Self::serialize_msg(client_id, service)))
+            .send(SendMsg::Msg(msg))
             .await
             .map_err(Error::send)?;
 
@@ -159,16 +167,9 @@ impl ConcurrentRpcClient for Connection {
             let mut updates = Box::pin(updates);
 
             while let Some(update) = updates.next().await {
-                let mut msg_bytes = Vec::new();
-                serialize(&mut msg_bytes, &protocol::VERSION);
-                serialize(&mut msg_bytes, S::ID.as_bytes());
-                serialize(&mut msg_bytes, &client_id);
-                serialize(&mut msg_bytes, &update);
-
-                let result = sender
-                    .send(SendMsg::Msg(msg_bytes))
-                    .await
-                    .map_err(Error::send);
+                let mut msg = Self::serialize_msg::<S, _>(client_id, SubscriptionControl::Update);
+                serialize(&mut msg, &update);
+                let result = sender.send(SendMsg::Msg(msg)).await.map_err(Error::send);
 
                 // TODO: Error handling?
                 result.unwrap();
