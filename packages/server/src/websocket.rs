@@ -87,8 +87,8 @@ impl WebSocketRouter {
     fn deserialize_msg<Msg: DeserializeOwned>(
         mut input: impl io::Read,
     ) -> Result<(DefaultKey, Msg)> {
-        let msg: Msg = deserialize_part(&mut input)?;
-        let client_id: DefaultKey = deserialize(input)?;
+        let client_id: DefaultKey = deserialize_part(&mut input)?;
+        let msg: Msg = deserialize(input)?;
         Ok((client_id, msg))
     }
 

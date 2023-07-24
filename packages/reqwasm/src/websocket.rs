@@ -2,10 +2,12 @@
 //!
 //! See [`Connection`] for an example.
 use std::{
+    cell::RefCell,
     future::Future,
     io::{Read, Write},
     marker::PhantomData,
     pin::Pin,
+    rc::Rc,
     task::{Context, Poll},
 };
 
@@ -31,7 +33,11 @@ use crate::Error;
 #[doc = include_doc::function_body!("tests/doc.rs", websocket_client, [my_app, MyAdd])]
 /// ```
 #[derive(Clone)]
-pub struct Connection(mpsc::Sender<SendMsg>);
+pub struct Connection {
+    sender: mpsc::Sender<SendMsg>,
+    msg_ids: ClientIdMap<oneshot::Sender<ReceiveMsgOrError>>,
+    subscription_ids: ClientIdMap<mpsc::Sender<ReceiveMsgOrError>>,
+}
 
 impl Connection {
     /// Constructor.
@@ -39,32 +45,39 @@ impl Connection {
         // TODO: Benchmark and see if make capacity > 1 improves perf.
         // This is to send messages to the websocket. We want this to block when we
         // can't send to the websocket, hence the small capacity.
-        let (send, to_send) = mpsc::channel::<SendMsg>(1);
+        let (sender, to_send) = mpsc::channel::<SendMsg>(1);
         let to_send = ReceiverStream::new(to_send);
+        let msg_ids = Rc::new(RefCell::new(SlotMap::new()));
+        let subscription_ids = Rc::new(RefCell::new(SlotMap::new()));
         let bg_ws = BackgroundWebsocket {
-            msg_ids: SlotMap::new(),
-            subscription_ids: SlotMap::new(),
+            msg_ids: msg_ids.clone(),
+            subscription_ids: subscription_ids.clone(),
         };
 
         spawn_local(async move { bg_ws.run(ws, to_send).await });
 
-        Self(send)
+        Self {
+            sender,
+            msg_ids,
+            subscription_ids,
+        }
     }
 
-    fn serialize_msg<M>(&self, msg: M) -> Vec<u8>
+    fn serialize_msg<M>(&self, client_id: DefaultKey, msg: M) -> Vec<u8>
     where
         M: protocol::MsgId + Serialize,
     {
         let mut msg_bytes = Vec::new();
         serialize(&mut msg_bytes, &protocol::VERSION);
         serialize(&mut msg_bytes, M::ID.as_bytes());
+        serialize(&mut msg_bytes, &client_id);
         serialize(&mut msg_bytes, &msg);
 
         msg_bytes
     }
 
     pub async fn close(self) {
-        self.0.send(SendMsg::Close).await.ok();
+        self.sender.send(SendMsg::Close).await.ok();
     }
 }
 
@@ -99,12 +112,10 @@ impl ConcurrentRpcClient for Connection {
         F: FnRemote,
     {
         let (notify, recv) = oneshot::channel();
+        let client_id = self.msg_ids.borrow_mut().insert(notify);
 
-        self.0
-            .send(SendMsg::Msg {
-                msg: self.serialize_msg(function),
-                notify,
-            })
+        self.sender
+            .send(SendMsg::Msg(self.serialize_msg(client_id, function)))
             .await
             .map_err(Error::send)?;
 
@@ -123,11 +134,10 @@ impl ConcurrentRpcClient for Connection {
         // websocket handler task.
         let (subscription_sink, subscription_stream) = mpsc::channel(1);
 
-        self.0
-            .send(SendMsg::Subscribe {
-                msg: self.serialize_msg(service),
-                subscription: subscription_sink,
-            })
+        let client_id = self.subscription_ids.borrow_mut().insert(subscription_sink);
+
+        self.sender
+            .send(SendMsg::Msg(self.serialize_msg(client_id, service)))
             .await
             .map_err(Error::send)?;
 
@@ -175,9 +185,11 @@ impl RpcClient for Connection {
 }
 
 struct BackgroundWebsocket {
-    msg_ids: SlotMap<DefaultKey, oneshot::Sender<ReceiveMsgOrError>>,
-    subscription_ids: SlotMap<DefaultKey, mpsc::Sender<ReceiveMsgOrError>>,
+    msg_ids: ClientIdMap<oneshot::Sender<ReceiveMsgOrError>>,
+    subscription_ids: ClientIdMap<mpsc::Sender<ReceiveMsgOrError>>,
 }
+
+type ClientIdMap<T> = Rc<RefCell<SlotMap<DefaultKey, T>>>;
 
 impl BackgroundWebsocket {
     async fn run(mut self, ws: WebSocket, to_send: ReceiverStream<SendMsg>) {
@@ -200,11 +212,11 @@ impl BackgroundWebsocket {
     }
 
     async fn send_errors(self, err: Error) {
-        for (_id, notifier) in self.msg_ids {
+        for (_id, notifier) in self.msg_ids.take() {
             notifier.send(Err(err.clone())).ok();
         }
 
-        for (_id, notifier) in self.subscription_ids {
+        for (_id, notifier) in self.subscription_ids.take() {
             notifier.send(Err(err.clone())).await.ok();
         }
     }
@@ -228,14 +240,21 @@ impl BackgroundWebsocket {
                 let id: DefaultKey = deserialize_part(&mut reader)?;
                 let payload_offset = message.len() - reader.len();
 
-                if let Some(notifier) = self.msg_ids.remove(id) {
+                let notifier = self.msg_ids.borrow_mut().remove(id);
+
+                if let Some(notifier) = notifier {
                     notifier
                         .send(Ok(ReceiveMsg {
                             payload_offset,
                             message,
                         }))
                         .map_err(|_| Error::receive("Unable to send message to client"))?;
-                } else if let Some(subscription) = self.subscription_ids.get(id) {
+                    return Ok(());
+                }
+
+                let subscription = self.subscription_ids.borrow().get(id).cloned();
+
+                if let Some(subscription) = subscription {
                     subscription
                         .send(Ok(ReceiveMsg {
                             payload_offset,
@@ -245,13 +264,12 @@ impl BackgroundWebsocket {
                         .map_err(|_| {
                             Error::receive("Unable to send subscription message to client")
                         })?;
-                } else {
-                    return Err(Error::deserialize_result("Unknown message id"));
-                };
+                    return Ok(());
+                }
             }
         }
 
-        Ok(())
+        Err(Error::deserialize_result("Unknown message id"))
     }
 
     async fn send<MessageSink>(&mut self, ws: &mut MessageSink, msg: SendMsg) -> Result<(), Error>
@@ -260,19 +278,7 @@ impl BackgroundWebsocket {
     {
         match msg {
             SendMsg::Close => ws.close().await,
-            SendMsg::Msg { mut msg, notify } => {
-                let key = self.msg_ids.insert(notify);
-                serialize(&mut msg, &key);
-                ws.send(Message::Bytes(msg)).await
-            }
-            SendMsg::Subscribe {
-                mut msg,
-                subscription,
-            } => {
-                let key = self.subscription_ids.insert(subscription);
-                serialize(&mut msg, &key);
-                ws.send(Message::Bytes(msg)).await
-            }
+            SendMsg::Msg(msg) => ws.send(Message::Bytes(msg)).await,
         }
         .map_err(Error::send)
     }
@@ -285,14 +291,7 @@ enum WsTask {
 
 enum SendMsg {
     Close,
-    Msg {
-        msg: Vec<u8>,
-        notify: oneshot::Sender<ReceiveMsgOrError>,
-    },
-    Subscribe {
-        msg: Vec<u8>,
-        subscription: mpsc::Sender<ReceiveMsgOrError>,
-    },
+    Msg(Vec<u8>),
 }
 
 struct ReceiveMsg {
