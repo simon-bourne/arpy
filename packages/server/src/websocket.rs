@@ -7,7 +7,7 @@ use std::{
     error,
     io::{self, Read, Write},
     mem, result,
-    sync::Arc,
+    sync::{Arc, RwLock},
 };
 
 use arpy::{protocol, FnRemote, FnSubscription};
@@ -29,7 +29,12 @@ use crate::{FnRemoteBody, FnSubscriptionBody};
 
 /// A collection of RPC calls to be handled by a WebSocket.
 #[derive(Default)]
-pub struct WebSocketRouter(HashMap<Id, RpcHandler>);
+pub struct WebSocketRouter {
+    rpc_handlers: HashMap<Id, RpcHandler>,
+    subscription_updates: SubscriptionUpdates,
+}
+
+type SubscriptionUpdates = Arc<RwLock<HashMap<DefaultKey, Sender<Vec<u8>>>>>;
 
 impl WebSocketRouter {
     /// Construct an empty router.
@@ -46,10 +51,10 @@ impl WebSocketRouter {
     {
         let id = FSig::ID.as_bytes().to_vec();
         let f = Arc::new(f);
-        self.0.insert(
+        self.rpc_handlers.insert(
             id,
             Box::new(move |body, result_sink| {
-                Box::pin(Self::run(f.clone(), body, result_sink.clone()))
+                Box::pin(Self::dispatch_rpc(f.clone(), body, result_sink.clone()))
             }),
         );
 
@@ -62,14 +67,21 @@ impl WebSocketRouter {
         F: FnSubscriptionBody<FSig> + Send + Sync + 'static,
         FSig: FnSubscription + Send + Sync + 'static,
         FSig::Item: Send + Sync + 'static,
+        FSig::Update: Send + Sync + 'static,
     {
         let id = FSig::ID.as_bytes().to_vec();
         let f = Arc::new(f);
+        let subscription_updates = self.subscription_updates.clone();
 
-        self.0.insert(
+        self.rpc_handlers.insert(
             id,
             Box::new(move |body, result_sink| {
-                Box::pin(Self::run_subscription(f.clone(), body, result_sink.clone()))
+                Box::pin(Self::dispatch_subscription(
+                    f.clone(),
+                    subscription_updates.clone(),
+                    body,
+                    result_sink.clone(),
+                ))
             }),
         );
 
@@ -92,29 +104,64 @@ impl WebSocketRouter {
         Ok((client_id, msg))
     }
 
+    async fn dispatch_subscription<F, FSig>(
+        f: Arc<F>,
+        subscription_updates: SubscriptionUpdates,
+        mut input: &[u8],
+        result_sink: ResultSink,
+    ) -> Result<()>
+    where
+        F: FnSubscriptionBody<FSig> + Send + Sync + 'static,
+        FSig: FnSubscription + Send + Sync + 'static,
+        FSig::Item: Send + Sync + 'static,
+        FSig::Update: Send + Sync + 'static,
+    {
+        let client_id: DefaultKey = deserialize_part(&mut input)?;
+
+        let update_sink = subscription_updates
+            .read()
+            .unwrap()
+            .get(&client_id)
+            .cloned();
+
+        if let Some(mut update_sink) = update_sink {
+            update_sink
+                .send(input.to_vec())
+                .await
+                .map_err(|e| Error::Protocol(format!("Subcription closed: {e}")))?;
+        } else {
+            Self::run_subscription(f, client_id, subscription_updates, input, result_sink).await?;
+        }
+
+        Ok(())
+    }
+
     async fn run_subscription<F, FSig>(
         f: Arc<F>,
-        input: impl io::Read,
+        client_id: DefaultKey,
+        subscription_updates: SubscriptionUpdates,
+        input: &[u8],
         mut result_sink: ResultSink,
     ) -> Result<()>
     where
         F: FnSubscriptionBody<FSig> + Send + Sync + 'static,
         FSig: FnSubscription + Send + Sync + 'static,
         FSig::Item: Send + Sync + 'static,
+        FSig::Update: Send + Sync + 'static,
     {
-        let (client_id, args) = Self::deserialize_msg::<FSig>(input)?;
+        let args: FSig = deserialize(input)?;
+        let (update_sink, update_stream) = mpsc::channel::<Vec<u8>>(1);
 
-        // TODO: Subscription updates:
-        //
-        // - Add `subscription_updates: Rc<RefCell<Map<DefaultKey, Sink>>>` to `Self`.
-        // - If `client_id` in `subscription_updates`, send update to the sink.
-        // - Else:
-        //      - Create a new sink/stream.
-        //      - Put the sink in `subscriptions_updates`
-        //      - Pass the stream to `f.run()`.
-        //      - When results stream finishes, remove client id from the map.
-        // - Client can handle cancellation if required.
-        let mut items = Box::pin(f.run(args));
+        subscription_updates
+            .write()
+            .unwrap()
+            .insert(client_id, update_sink);
+
+        let update_stream = update_stream.map(|msg| {
+            let msg: FSig::Update = deserialize(msg.as_slice()).unwrap();
+            msg
+        });
+        let mut items = Box::pin(f.run(update_stream, args));
 
         let reply = Self::serialize_msg(client_id, &());
         result_sink
@@ -130,12 +177,14 @@ impl WebSocketRouter {
                     break;
                 }
             }
+
+            subscription_updates.write().unwrap().remove(&client_id);
         });
 
         Ok(())
     }
 
-    async fn run<F, FSig>(
+    async fn dispatch_rpc<F, FSig>(
         f: Arc<F>,
         input: impl io::Read,
         mut result_sink: ResultSink,
@@ -180,7 +229,7 @@ impl WebSocketHandler {
     /// of the stream.
     pub fn new(router: WebSocketRouter, max_in_flight: usize) -> Arc<Self> {
         Arc::new(Self {
-            runners: router.0,
+            runners: router.rpc_handlers,
             // We use a semaphore so we have a resource limit shared between all connection, but
             // each connection can maintain it's own unbounded queue of in-flight RPC calls.
             in_flight: Arc::new(Semaphore::new(max_in_flight)),

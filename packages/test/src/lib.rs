@@ -23,6 +23,15 @@ pub struct Counter(pub i32);
 
 impl FnSubscription for Counter {
     type Item = i32;
+    type Update = ();
+}
+
+#[derive(MsgId, Serialize, Deserialize, Debug)]
+pub struct AddN(pub i32);
+
+impl FnSubscription for AddN {
+    type Item = i32;
+    type Update = i32;
 }
 
 pub const PORT: u16 = 9090;

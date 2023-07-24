@@ -1,8 +1,8 @@
 //! These tests are run from `provide_server`
 use arpy::{ConcurrentRpcClient, FnRemote, FnTryRemote, ServerSentEvents};
 use arpy_reqwasm::{eventsource, http, websocket};
-use arpy_test::{Add, Counter, TryMultiply, PORT};
-use futures::StreamExt;
+use arpy_test::{Add, AddN, Counter, TryMultiply, PORT};
+use futures::{stream, StreamExt};
 use reqwasm::websocket::futures::WebSocket;
 use wasm_bindgen_test::{wasm_bindgen_test, wasm_bindgen_test_configure};
 
@@ -50,7 +50,10 @@ async fn out_of_order_websocket() {
 async fn websocket_subscription() {
     let connection = websocket();
 
-    let stream = connection.subscribe(Counter(5)).await.unwrap();
+    let stream = connection
+        .subscribe(Counter(5), stream::pending())
+        .await
+        .unwrap();
 
     assert_eq!(
         stream
@@ -59,6 +62,22 @@ async fn websocket_subscription() {
             .collect::<Vec<i32>>()
             .await,
         (5..15).collect::<Vec<i32>>()
+    )
+}
+
+#[wasm_bindgen_test]
+async fn websocket_subscription_updates() {
+    let connection = websocket();
+
+    let stream = connection.subscribe(AddN(1), stream::iter(0..10)).await.unwrap();
+
+    assert_eq!(
+        stream
+            .take(10)
+            .map(Result::unwrap)
+            .collect::<Vec<i32>>()
+            .await,
+        (1..11).collect::<Vec<i32>>()
     )
 }
 

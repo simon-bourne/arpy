@@ -63,7 +63,7 @@ impl Connection {
         }
     }
 
-    fn serialize_msg<M>(&self, client_id: DefaultKey, msg: M) -> Vec<u8>
+    fn serialize_msg<M>(client_id: DefaultKey, msg: M) -> Vec<u8>
     where
         M: protocol::MsgId + Serialize,
     {
@@ -115,7 +115,7 @@ impl ConcurrentRpcClient for Connection {
         let client_id = self.msg_ids.borrow_mut().insert(notify);
 
         self.sender
-            .send(SendMsg::Msg(self.serialize_msg(client_id, function)))
+            .send(SendMsg::Msg(Self::serialize_msg(client_id, function)))
             .await
             .map_err(Error::send)?;
 
@@ -125,24 +125,24 @@ impl ConcurrentRpcClient for Connection {
         })
     }
 
-    async fn subscribe<S>(&self, service: S) -> Result<SubscriptionStream<S::Item>, Error>
+    async fn subscribe<S>(
+        &self,
+        service: S,
+        updates: impl Stream<Item = S::Update> + 'static,
+    ) -> Result<SubscriptionStream<S::Item>, Error>
     where
-        S: FnSubscription,
+        S: FnSubscription + 'static,
     {
         // TODO: Benchmark and adjust size.
         // We use a small channel buffer as this is just to get messages to the
         // websocket handler task.
         let (subscription_sink, subscription_stream) = mpsc::channel(1);
 
-        // TODO: Subscription updates:
-        //
-        // - Add a paramater to this: `updates: impl Stream<S::Update>`.
-        // - Use `spawn_local` to send all the messages from the `Stream` to the
-        //   websocket.
+        // TODO: Cleanup `subscription_ids`
         let client_id = self.subscription_ids.borrow_mut().insert(subscription_sink);
 
         self.sender
-            .send(SendMsg::Msg(self.serialize_msg(client_id, service)))
+            .send(SendMsg::Msg(Self::serialize_msg(client_id, service)))
             .await
             .map_err(Error::send)?;
 
@@ -152,6 +152,28 @@ impl ConcurrentRpcClient for Connection {
             .next()
             .await
             .ok_or_else(|| Error::receive("Couldn't receive subscription confirmation"))??;
+
+        let sender = self.sender.clone();
+
+        spawn_local(async move {
+            let mut updates = Box::pin(updates);
+
+            while let Some(update) = updates.next().await {
+                let mut msg_bytes = Vec::new();
+                serialize(&mut msg_bytes, &protocol::VERSION);
+                serialize(&mut msg_bytes, S::ID.as_bytes());
+                serialize(&mut msg_bytes, &client_id);
+                serialize(&mut msg_bytes, &update);
+
+                let result = sender
+                    .send(SendMsg::Msg(msg_bytes))
+                    .await
+                    .map_err(Error::send);
+
+                // TODO: Error handling?
+                result.unwrap();
+            }
+        });
 
         Ok(SubscriptionStream {
             stream: subscription_stream,

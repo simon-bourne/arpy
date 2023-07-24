@@ -1,7 +1,7 @@
 use std::future::Future;
 
 use arpy::{FnRemote, FnSubscription};
-use futures::Stream;
+use futures::{stream::BoxStream, Stream};
 pub use websocket::{WebSocketHandler, WebSocketRouter};
 
 pub mod websocket;
@@ -45,23 +45,33 @@ pub trait FnSubscriptionBody<Args>
 where
     Args: FnSubscription,
     Args::Item: Send + Sync + 'static,
+    Args::Update: Send + Sync + 'static,
 {
-    type Stream: Stream<Item = Args::Item> + Send + Sync;
+    type Output: Stream<Item = Args::Item> + Send;
 
     /// Evaluate the function.
-    fn run(&self, args: Args) -> Self::Stream;
+    fn run(
+        &self,
+        updates: impl Stream<Item = Args::Update> + Send + 'static,
+        args: Args,
+    ) -> Self::Output;
 }
 
-impl<Args, St, F> FnSubscriptionBody<Args> for F
+impl<Args, Output, F> FnSubscriptionBody<Args> for F
 where
     Args: FnSubscription,
-    F: Fn(Args) -> St,
-    St: Stream<Item = Args::Item> + Send + Sync,
+    F: Fn(BoxStream<'static, Args::Update>, Args) -> Output,
+    Output: Stream<Item = Args::Item> + Send,
     Args::Item: Send + Sync + 'static,
+    Args::Update: Send + Sync + 'static,
 {
-    type Stream = St;
+    type Output = Output;
 
-    fn run(&self, args: Args) -> Self::Stream {
-        self(args)
+    fn run(
+        &self,
+        updates: impl Stream<Item = Args::Update> + Send + 'static,
+        args: Args,
+    ) -> Self::Output {
+        self(Box::pin(updates), args)
     }
 }

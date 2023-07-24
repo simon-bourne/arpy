@@ -23,8 +23,9 @@ async fn my_handler(ArpyRequest(args): ArpyRequest<MyAdd>) -> impl IntoResponse 
     ArpyResponse::new(MimeType::Cbor, args.0 + args.1)
 }
 
-pub fn extractor_example() -> Router {
-    Router::<()>::new().route("/api/my-add", post(my_handler))
+#[allow(unused_must_use)]
+pub fn extractor_example() {
+    Router::<()>::new().route("/api/my-add", post(my_handler));
 }
 
 async fn my_add(args: MyAdd) -> u32 {

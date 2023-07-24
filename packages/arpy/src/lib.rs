@@ -101,6 +101,8 @@ impl<Success, Error, T> FnTryRemote<Success, Error> for T where
 pub trait FnSubscription: protocol::MsgId + Serialize + DeserializeOwned + Debug {
     /// The subscription will give you back a stream of `Item`.
     type Item: Serialize + DeserializeOwned + Debug;
+    /// The subscription can be updated with a stream of `Update`.
+    type Update: Serialize + DeserializeOwned + Debug;
 }
 
 /// An RPC client.
@@ -215,7 +217,7 @@ pub trait ConcurrentRpcClient {
     /// # use arpy::{ConcurrentRpcClient, FnSubscription, MsgId};
     /// # use serde::{Serialize, Deserialize};
     /// # use std::future::Ready;
-    /// # use futures::StreamExt;
+    /// # use futures::{stream, StreamExt};
     /// #
     /// #[derive(MsgId, Serialize, Deserialize, Debug)]
     /// struct MyCounter {
@@ -224,10 +226,14 @@ pub trait ConcurrentRpcClient {
     ///
     /// impl FnSubscription for MyCounter {
     ///     type Item = i32;
+    ///     type Update = ();
     /// }
     ///
     /// async fn example(conn: impl ConcurrentRpcClient) {
-    ///     let mut subscription = conn.subscribe(MyCounter { start_at: 10 }).await.unwrap();
+    ///     let mut subscription = conn
+    ///         .subscribe(MyCounter { start_at: 10 }, stream::pending())
+    ///         .await
+    ///         .unwrap();
     ///
     ///     while let Some(count) = subscription.next().await {
     ///         println!("{}", count.unwrap());
@@ -237,9 +243,10 @@ pub trait ConcurrentRpcClient {
     async fn subscribe<S>(
         &self,
         service: S,
+        updates: impl Stream<Item = S::Update> + 'static,
     ) -> Result<Self::SubscriptionStream<S::Item>, Self::Error>
     where
-        S: FnSubscription;
+        S: FnSubscription + 'static;
 }
 
 /// The [`Future`] returned from [`ConcurrentRpcClient::try_begin_call`].
