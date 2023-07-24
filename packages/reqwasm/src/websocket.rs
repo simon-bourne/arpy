@@ -143,9 +143,10 @@ impl ConcurrentRpcClient for Connection {
 
         let mut subscription_stream = ReceiverStream::new(subscription_stream);
 
-        // Discard the first message. It's the reply to the subscription and will
-        // eventually contain the cancellation ID.
-        subscription_stream.next().await;
+        subscription_stream
+            .next()
+            .await
+            .ok_or_else(|| Error::receive("Couldn't receive subscription confirmation"))??;
 
         Ok(SubscriptionStream {
             stream: subscription_stream,
