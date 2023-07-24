@@ -31,17 +31,19 @@ async fn my_add(args: MyAdd) -> u32 {
     args.0 + args.1
 }
 
-pub fn handler_example() -> Router {
+#[allow(unused_must_use)]
+pub fn handler_example() {
     Router::<()>::new().route(
         "/api/my-add",
         post(|headers, args| handler(headers, args, Arc::new(my_add))),
-    )
+    );
 }
 
-pub fn router_example() -> Router {
+#[allow(unused_must_use)]
+pub fn router_example() {
     let ws = WebSocketRouter::new().handle(my_add);
 
     Router::new()
         .http_rpc_route("/http", my_add)
-        .ws_rpc_route("/ws", ws, 1000)
+        .ws_rpc_route("/ws", ws, 1000);
 }
