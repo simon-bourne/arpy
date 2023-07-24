@@ -169,7 +169,7 @@ impl ConcurrentRpcClient for Connection {
             while let Some(update) = updates.next().await {
                 let mut msg = Self::serialize_msg::<S, _>(client_id, SubscriptionControl::Update);
                 serialize(&mut msg, &update);
-                
+
                 if sender.send(SendMsg::Msg(msg)).await.is_err() {
                     // TODO: log ws closed
                     break;
