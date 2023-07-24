@@ -104,6 +104,16 @@ impl WebSocketRouter {
     {
         let (client_id, args) = Self::deserialize_msg::<FSig>(input)?;
 
+        // TODO: Subscription updates:
+        //
+        // - Add `subscription_updates: Rc<RefCell<Map<DefaultKey, Sink>>>` to `Self`.
+        // - If `client_id` in `subscription_updates`, send update to the sink.
+        // - Else:
+        //      - Create a new sink/stream.
+        //      - Put the sink in `subscriptions_updates`
+        //      - Pass the stream to `f.run()`.
+        //      - When results stream finishes, remove client id from the map.
+        // - Client can handle cancellation if required.
         let mut items = Box::pin(f.run(args));
 
         let reply = Self::serialize_msg(client_id, &());
@@ -113,7 +123,6 @@ impl WebSocketRouter {
             .unwrap_or_else(client_disconnected);
 
         spawn(async move {
-            // TODO: Cancellation
             while let Some(item) = items.next().await {
                 let item_bytes = Self::serialize_msg(client_id, &item);
 

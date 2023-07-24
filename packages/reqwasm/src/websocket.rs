@@ -134,6 +134,11 @@ impl ConcurrentRpcClient for Connection {
         // websocket handler task.
         let (subscription_sink, subscription_stream) = mpsc::channel(1);
 
+        // TODO: Subscription updates:
+        //
+        // - Add a paramater to this: `updates: impl Stream<S::Update>`.
+        // - Use `spawn_local` to send all the messages from the `Stream` to the
+        //   websocket.
         let client_id = self.subscription_ids.borrow_mut().insert(subscription_sink);
 
         self.sender
