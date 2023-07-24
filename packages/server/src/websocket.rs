@@ -272,8 +272,9 @@ impl WebSocketHandler {
 
         let id: Vec<u8> = deserialize_part(&mut msg)?;
 
-        let Some(function) = self.runners.get(&id)
-        else { return Err(Error::FunctionNotFound) };
+        let Some(function) = self.runners.get(&id) else {
+            return Err(Error::FunctionNotFound);
+        };
 
         function(msg, result_sink).await
     }
