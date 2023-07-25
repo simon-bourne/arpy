@@ -52,7 +52,7 @@ impl WebSocketRouter {
     where
         F: FnRemoteBody<FSig> + Send + Sync + 'static,
         FSig: FnRemote + Send + Sync + 'static,
-        FSig::Output: Send + Sync + 'static,
+        FSig::Output: Send + 'static,
     {
         let id = FSig::ID.as_bytes().to_vec();
         let f = Arc::new(f);
@@ -208,8 +208,8 @@ impl WebSocketRouter {
         mut result_sink: ResultSink,
     ) -> Result<()>
     where
-        F: FnRemoteBody<FSig> + Send + Sync + 'static,
-        FSig: FnRemote + Send + Sync + 'static,
+        F: FnRemoteBody<FSig>,
+        FSig: FnRemote,
     {
         let (client_id, args) = Self::deserialize_msg::<FSig>(input)?;
 
@@ -263,7 +263,7 @@ impl WebSocketHandler {
         Incoming: AsRef<[u8]> + Send + Sync + 'static,
         Outgoing: From<Vec<u8>>,
         SocketSink: Sink<Outgoing> + Unpin,
-        SocketSink::Error: Send + Sync + error::Error + 'static,
+        SocketSink::Error: error::Error,
     {
         let incoming = incoming.then(|msg| async {
             Event::Incoming {

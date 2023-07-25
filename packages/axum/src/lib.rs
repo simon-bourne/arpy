@@ -39,7 +39,7 @@ pub trait RpcRoute {
     fn http_rpc_route<F, T>(self, prefix: &str, f: F) -> Self
     where
         F: FnRemoteBody<T> + Send + Sync + 'static,
-        T: FnRemote + Send + Sync + 'static;
+        T: FnRemote + Send + 'static;
 
     /// Add all the RPC endpoints in `router` to a websocket endpoint at `path`.
     fn ws_rpc_route(self, path: &str, router: WebSocketRouter, max_in_flight: usize) -> Self;
@@ -61,7 +61,7 @@ impl RpcRoute for Router {
     fn http_rpc_route<F, T>(self, prefix: &str, f: F) -> Self
     where
         F: FnRemoteBody<T> + Send + Sync + 'static,
-        T: FnRemote + Send + Sync + 'static,
+        T: FnRemote + Send + 'static,
     {
         let id = T::ID;
         let f = Arc::new(f);

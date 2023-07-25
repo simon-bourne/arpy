@@ -10,13 +10,12 @@ pub mod websocket;
 ///
 /// You shouldn't need to implement this, as a blanket implementation is
 /// provided for any `async` function or closure that takes a single
-/// [`FnRemote`] argument and returns the [`FnRemote::Output`]. The future must
-/// be `Send + Sync`.
+/// [`FnRemote`] argument and returns the [`FnRemote::Output`].
 pub trait FnRemoteBody<Args>
 where
     Args: FnRemote,
 {
-    type Fut: Future<Output = Args::Output> + Send + Sync;
+    type Fut: Future<Output = Args::Output> + Send;
 
     /// Evaluate the function.
     fn run(&self, args: Args) -> Self::Fut;
@@ -26,7 +25,7 @@ impl<Args, Fut, F> FnRemoteBody<Args> for F
 where
     Args: FnRemote,
     F: Fn(Args) -> Fut,
-    Fut: Future<Output = Args::Output> + Send + Sync,
+    Fut: Future<Output = Args::Output> + Send,
 {
     type Fut = Fut;
 
