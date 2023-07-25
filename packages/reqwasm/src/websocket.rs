@@ -18,7 +18,7 @@ use std::{
     future::Future,
     io::{Read, Write},
     marker::PhantomData,
-    pin::Pin,
+    pin::{pin, Pin},
     rc::Rc,
     task::{Context, Poll},
 };
@@ -58,7 +58,9 @@ impl Connection {
     /// Constructor.
     pub fn new(ws: WebSocket) -> Self {
         let (ws_sink, ws_stream) = ws.split();
-        let ws_sink = ws_sink.sink_map_err(Error::send);
+        let ws_sink = ws_sink
+            .sink_map_err(Error::send)
+            .with(|msg| async { Ok(Message::Bytes(msg)) });
         let ws_stream = ws_stream.map_err(Error::receive).map(|msg| match msg? {
             Message::Text(_) => Err(Error::receive("Text messages are unsupported")),
             Message::Bytes(message) => Ok(message),
@@ -243,10 +245,12 @@ type ClientIdMap<T> = Rc<RefCell<SlotMap<DefaultKey, T>>>;
 impl BackgroundWebsocket {
     async fn run(
         mut self,
-        mut ws_sink: impl Sink<Message, Error = Error> + Unpin,
-        ws_stream: impl Stream<Item = Result<Vec<u8>, Error>> + Unpin,
+        ws_sink: impl Sink<Vec<u8>, Error = Error>,
+        ws_stream: impl Stream<Item = Result<Vec<u8>, Error>>,
         to_send: ReceiverStream<SendMsg>,
     ) {
+        let mut ws_sink = pin!(ws_sink);
+        let ws_stream = pin!(ws_stream);
         let mut ws_task_stream =
             stream_select!(ws_stream.map(WsTask::Incoming), to_send.map(WsTask::ToSend));
 
@@ -320,11 +324,12 @@ impl BackgroundWebsocket {
 
     async fn send<MessageSink>(&mut self, ws: &mut MessageSink, msg: SendMsg) -> Result<(), Error>
     where
-        MessageSink: Sink<Message, Error = Error> + Unpin,
+        MessageSink: Sink<Vec<u8>, Error = Error> + Unpin,
     {
         match msg {
             SendMsg::Close => ws.close().await,
             // TODO: Shoud we use `feed` instead of `send`?
+            SendMsg::Msg(msg) => ws.send(msg).await,
         }
     }
 }
