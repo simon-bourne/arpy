@@ -59,7 +59,10 @@ impl Connection {
     pub fn new(ws: WebSocket) -> Self {
         let (ws_sink, ws_stream) = ws.split();
         let ws_sink = ws_sink.sink_map_err(Error::send);
-        let ws_stream = ws_stream.map_err(Error::receive);
+        let ws_stream = ws_stream.map_err(Error::receive).map(|msg| match msg? {
+            Message::Text(_) => Err(Error::receive("Text messages are unsupported")),
+            Message::Bytes(message) => Ok(message),
+        });
 
         // TODO: Benchmark and see if make capacity > 1 improves perf.
         // This is to send messages to the websocket. We want this to block when we
@@ -241,7 +244,7 @@ impl BackgroundWebsocket {
     async fn run(
         mut self,
         mut ws_sink: impl Sink<Message, Error = Error> + Unpin,
-        ws_stream: impl Stream<Item = Result<Message, Error>> + Unpin,
+        ws_stream: impl Stream<Item = Result<Vec<u8>, Error>> + Unpin,
         to_send: ReceiverStream<SendMsg>,
     ) {
         let mut ws_task_stream =
@@ -270,52 +273,46 @@ impl BackgroundWebsocket {
         }
     }
 
-    async fn receive(&mut self, msg: Result<Message, Error>) -> Result<(), Error> {
-        match msg? {
-            Message::Text(_) => return Err(Error::receive("Text messages are unsupported")),
-            Message::Bytes(message) => {
-                let mut reader = message.as_slice();
+    async fn receive(&mut self, message: Result<Vec<u8>, Error>) -> Result<(), Error> {
+        let message = message?;
+        let mut reader = message.as_slice();
 
-                let protocol_version: usize = deserialize_part(&mut reader)?;
+        let protocol_version: usize = deserialize_part(&mut reader)?;
 
-                if protocol_version != protocol::VERSION {
-                    return Err(Error::receive(format!(
-                        "Unknown protocol version. Expected {}, got {}.",
-                        protocol::VERSION,
-                        protocol_version
-                    )));
-                }
+        if protocol_version != protocol::VERSION {
+            return Err(Error::receive(format!(
+                "Unknown protocol version. Expected {}, got {}.",
+                protocol::VERSION,
+                protocol_version
+            )));
+        }
 
-                let id: DefaultKey = deserialize_part(&mut reader)?;
-                let payload_offset = message.len() - reader.len();
+        let id: DefaultKey = deserialize_part(&mut reader)?;
+        let payload_offset = message.len() - reader.len();
 
-                let notifier = self.msg_ids.borrow_mut().remove(id);
+        let notifier = self.msg_ids.borrow_mut().remove(id);
 
-                if let Some(notifier) = notifier {
-                    notifier
-                        .send(Ok(ReceiveMsg {
-                            payload_offset,
-                            message,
-                        }))
-                        .map_err(|_| Error::receive("Unable to send message to client"))?;
-                    return Ok(());
-                }
+        if let Some(notifier) = notifier {
+            notifier
+                .send(Ok(ReceiveMsg {
+                    payload_offset,
+                    message,
+                }))
+                .map_err(|_| Error::receive("Unable to send message to client"))?;
+            return Ok(());
+        }
 
-                let subscription = self.subscription_ids.borrow().get(id).cloned();
+        let subscription = self.subscription_ids.borrow().get(id).cloned();
 
-                if let Some(subscription) = subscription {
-                    subscription
-                        .send(Ok(ReceiveMsg {
-                            payload_offset,
-                            message,
-                        }))
-                        .await
-                        .map_err(|_| {
-                            Error::receive("Unable to send subscription message to client")
-                        })?;
-                    return Ok(());
-                }
-            }
+        if let Some(subscription) = subscription {
+            subscription
+                .send(Ok(ReceiveMsg {
+                    payload_offset,
+                    message,
+                }))
+                .await
+                .map_err(|_| Error::receive("Unable to send subscription message to client"))?;
+            return Ok(());
         }
 
         Err(Error::deserialize_result("Unknown message id"))
@@ -333,7 +330,7 @@ impl BackgroundWebsocket {
 }
 
 enum WsTask {
-    Incoming(Result<Message, Error>),
+    Incoming(Result<Vec<u8>, Error>),
     ToSend(SendMsg),
 }
 
