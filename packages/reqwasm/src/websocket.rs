@@ -8,7 +8,7 @@ use futures::{SinkExt, Stream, StreamExt, TryStreamExt};
 use reqwasm::websocket::{futures::WebSocket, Message};
 use serde::de::DeserializeOwned;
 
-use crate::Error;
+use crate::{Error, LocalSpawner};
 
 /// A connection to the server.
 ///
@@ -18,7 +18,7 @@ use crate::Error;
 #[doc = include_doc::function_body!("tests/doc.rs", websocket_client, [my_app, MyAdd])]
 /// ```
 #[derive(Clone)]
-pub struct Connection(arpy_client::websocket::Connection);
+pub struct Connection(arpy_client::websocket::Connection<LocalSpawner>);
 
 impl Connection {
     /// Constructor.
@@ -32,7 +32,11 @@ impl Connection {
             Message::Bytes(message) => Ok(message),
         });
 
-        Self(arpy_client::websocket::Connection::new(ws_sink, ws_stream))
+        Self(arpy_client::websocket::Connection::new(
+            LocalSpawner,
+            ws_sink,
+            ws_stream,
+        ))
     }
 
     pub async fn close(self) {

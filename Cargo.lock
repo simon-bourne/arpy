@@ -343,7 +343,6 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-stream",
- "wasm-bindgen-futures",
 ]
 
 [[package]]
@@ -436,6 +435,7 @@ dependencies = [
  "serde_json",
  "thiserror",
  "tokio",
+ "wasm-bindgen-futures",
  "wasm-bindgen-test",
  "web-sys",
 ]

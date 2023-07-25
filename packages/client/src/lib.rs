@@ -1,6 +1,7 @@
 //! Portable client for Arpy.
 use std::fmt::{Debug, Display};
 
+use futures::Future;
 use thiserror::Error;
 
 pub mod websocket;
@@ -33,4 +34,10 @@ impl Error {
     pub fn deserialize_result(e: impl Display) -> Self {
         Self::DeserializeResult(e.to_string())
     }
+}
+
+pub trait Spawner {
+    fn spawn_local<F>(&self, future: F)
+    where
+        F: Future<Output = ()> + 'static;
 }

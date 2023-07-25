@@ -28,25 +28,25 @@ use serde::{de::DeserializeOwned, Serialize};
 use slotmap::{DefaultKey, SlotMap};
 use tokio::sync::{mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
-use wasm_bindgen_futures::spawn_local;
 
-use crate::Error;
+use crate::{Error, Spawner};
 
 /// A portable websocket connection
 ///
 /// Where possible, this should be used as the basis for a websocket client
 /// implementation. See the `arpy-reqwasm` crate for an example.
 #[derive(Clone)]
-pub struct Connection {
+pub struct Connection<S> {
+    spawner: S,
     sender: mpsc::Sender<SendMsg>,
     msg_ids: ClientIdMap<oneshot::Sender<ReceiveMsgOrError>>,
     subscription_ids: ClientIdMap<mpsc::Sender<ReceiveMsgOrError>>,
 }
 
-impl Connection {
-    // TODO: Pass in a spawner
+impl<S: Spawner> Connection<S> {
     /// Constructor.
     pub fn new(
+        spawner: S,
         ws_sink: impl Sink<Vec<u8>, Error = Error> + 'static,
         ws_stream: impl Stream<Item = Result<Vec<u8>, Error>> + 'static,
     ) -> Self {
@@ -62,9 +62,10 @@ impl Connection {
             subscription_ids: subscription_ids.clone(),
         };
 
-        spawn_local(async move { bg_ws.run(ws_sink, ws_stream, to_send).await });
+        spawner.spawn_local(async move { bg_ws.run(ws_sink, ws_stream, to_send).await });
 
         Self {
+            spawner,
             sender,
             msg_ids,
             subscription_ids,
@@ -111,7 +112,7 @@ impl<Item: DeserializeOwned> Stream for SubscriptionStream<Item> {
 }
 
 #[async_trait(?Send)]
-impl ConcurrentRpcClient for Connection {
+impl<Spawn: Spawner> ConcurrentRpcClient for Connection<Spawn> {
     type Call<Output: DeserializeOwned> = Call<Output>;
     type Error = Error;
     type SubscriptionStream<Item: DeserializeOwned> = SubscriptionStream<Item>;
@@ -168,7 +169,7 @@ impl ConcurrentRpcClient for Connection {
 
         let sender = self.sender.clone();
 
-        spawn_local(async move {
+        self.spawner.spawn_local(async move {
             let mut updates = Box::pin(updates);
 
             while let Some(update) = updates.next().await {
@@ -208,7 +209,7 @@ impl<Output: DeserializeOwned> Future for Call<Output> {
 }
 
 #[async_trait(?Send)]
-impl RpcClient for Connection {
+impl<S: Spawner> RpcClient for Connection<S> {
     type Error = Error;
 
     async fn call<Args>(&self, args: Args) -> Result<Args::Output, Self::Error>
