@@ -29,7 +29,7 @@ use arpy::{
 };
 use async_trait::async_trait;
 use bincode::Options;
-use futures::{stream_select, Sink, SinkExt, Stream, StreamExt};
+use futures::{stream_select, Sink, SinkExt, Stream, StreamExt, TryStreamExt};
 use pin_project::pin_project;
 use reqwasm::websocket::{futures::WebSocket, Message, WebSocketError};
 use serde::{de::DeserializeOwned, Serialize};
@@ -57,6 +57,9 @@ pub struct Connection {
 impl Connection {
     /// Constructor.
     pub fn new(ws: WebSocket) -> Self {
+        let (ws_sink, ws_stream) = ws.split();
+        let ws_stream = ws_stream.map_err(Error::receive);
+
         // TODO: Benchmark and see if make capacity > 1 improves perf.
         // This is to send messages to the websocket. We want this to block when we
         // can't send to the websocket, hence the small capacity.
@@ -69,7 +72,7 @@ impl Connection {
             subscription_ids: subscription_ids.clone(),
         };
 
-        spawn_local(async move { bg_ws.run(ws, to_send).await });
+        spawn_local(async move { bg_ws.run(ws_sink, ws_stream, to_send).await });
 
         Self {
             sender,
@@ -234,9 +237,12 @@ struct BackgroundWebsocket {
 type ClientIdMap<T> = Rc<RefCell<SlotMap<DefaultKey, T>>>;
 
 impl BackgroundWebsocket {
-    async fn run(mut self, ws: WebSocket, to_send: ReceiverStream<SendMsg>) {
-        let (mut ws_sink, ws_stream) = ws.split();
-
+    async fn run(
+        mut self,
+        mut ws_sink: impl Sink<Message, Error = WebSocketError> + Unpin,
+        ws_stream: impl Stream<Item = Result<Message, Error>> + Unpin,
+        to_send: ReceiverStream<SendMsg>,
+    ) {
         let mut ws_task_stream =
             stream_select!(ws_stream.map(WsTask::Incoming), to_send.map(WsTask::ToSend));
 
@@ -263,8 +269,8 @@ impl BackgroundWebsocket {
         }
     }
 
-    async fn receive(&mut self, msg: Result<Message, WebSocketError>) -> Result<(), Error> {
-        match msg.map_err(Error::receive)? {
+    async fn receive(&mut self, msg: Result<Message, Error>) -> Result<(), Error> {
+        match msg? {
             Message::Text(_) => return Err(Error::receive("Text messages are unsupported")),
             Message::Bytes(message) => {
                 let mut reader = message.as_slice();
@@ -327,7 +333,7 @@ impl BackgroundWebsocket {
 }
 
 enum WsTask {
-    Incoming(Result<Message, WebSocketError>),
+    Incoming(Result<Message, Error>),
     ToSend(SendMsg),
 }
 
