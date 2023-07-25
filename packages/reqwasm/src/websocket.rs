@@ -1,6 +1,18 @@
 //! Websocket Client.
 //!
 //! See [`Connection`] for an example.
+
+// TODO: Factor out an `arpy-client` crate.
+//
+// Most code the code should factor out. We'd need:
+//
+// - An abstraction to spawn tasks.
+// - Factor out the `reqwasm` dependencies from `BackgroundWebsocket`.
+
+// TODO: Provide a websocket implementation suitable for SSR
+//
+// `tokio-tungstenite` looks like a suitable websocket library.
+
 use std::{
     cell::RefCell,
     future::Future,
