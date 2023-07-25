@@ -313,7 +313,6 @@ impl BackgroundWebsocket {
     {
         match msg {
             SendMsg::Close => ws.close().await,
-            // TODO: Shoud we use `feed` instead of `send`?
             SendMsg::Msg(msg) => ws.send(msg).await,
         }
     }
