@@ -70,10 +70,10 @@ impl WebSocketRouter {
     pub fn handle_subscription<F, FSig>(mut self, f: F) -> Self
     where
         F: FnSubscriptionBody<FSig> + Send + Sync + 'static,
-        FSig: FnSubscription + Send + Sync + 'static,
-        FSig::InitialReply: Send + Sync + 'static,
-        FSig::Item: Send + Sync + 'static,
-        FSig::Update: Send + Sync + 'static,
+        FSig: FnSubscription + Send + 'static,
+        FSig::InitialReply: Send + 'static,
+        FSig::Item: Send + 'static,
+        FSig::Update: Send + 'static,
     {
         let id = FSig::ID.as_bytes().to_vec();
         let f = Arc::new(f);
@@ -117,11 +117,11 @@ impl WebSocketRouter {
         result_sink: ResultSink,
     ) -> Result<()>
     where
-        F: FnSubscriptionBody<FSig> + Send + Sync + 'static,
-        FSig: FnSubscription + Send + Sync + 'static,
-        FSig::InitialReply: Send + Sync + 'static,
-        FSig::Item: Send + Sync + 'static,
-        FSig::Update: Send + Sync + 'static,
+        F: FnSubscriptionBody<FSig> + 'static,
+        FSig: FnSubscription + 'static,
+        FSig::InitialReply: 'static,
+        FSig::Item: Send + 'static,
+        FSig::Update: 'static,
     {
         let client_id: DefaultKey = deserialize_part(&mut input)?;
         let control: SubscriptionControl = deserialize_part(&mut input)?;
@@ -160,11 +160,11 @@ impl WebSocketRouter {
         mut result_sink: ResultSink,
     ) -> Result<()>
     where
-        F: FnSubscriptionBody<FSig> + Send + Sync + 'static,
-        FSig: FnSubscription + Send + Sync + 'static,
-        FSig::InitialReply: Send + Sync + 'static,
-        FSig::Item: Send + Sync + 'static,
-        FSig::Update: Send + Sync + 'static,
+        F: FnSubscriptionBody<FSig> + 'static,
+        FSig: FnSubscription + 'static,
+        FSig::InitialReply: 'static,
+        FSig::Item: Send + 'static,
+        FSig::Update: 'static,
     {
         let (update_sink, update_stream) = mpsc::channel::<Vec<u8>>(1);
 
