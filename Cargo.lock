@@ -328,6 +328,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "arpy-client"
+version = "0.1.0"
+dependencies = [
+ "arpy",
+ "async-trait",
+ "bincode",
+ "futures",
+ "js-sys",
+ "pin-project",
+ "serde",
+ "serde_json",
+ "slotmap",
+ "thiserror",
+ "tokio",
+ "tokio-stream",
+ "wasm-bindgen-futures",
+]
+
+[[package]]
 name = "arpy-example-actix"
 version = "0.1.0"
 dependencies = [
@@ -403,9 +422,9 @@ name = "arpy-reqwasm"
 version = "0.1.0"
 dependencies = [
  "arpy",
+ "arpy-client",
  "arpy-test",
  "async-trait",
- "bincode",
  "ciborium",
  "futures",
  "gloo-net 0.3.0",
@@ -415,11 +434,8 @@ dependencies = [
  "reqwasm",
  "serde",
  "serde_json",
- "slotmap",
  "thiserror",
  "tokio",
- "tokio-stream",
- "wasm-bindgen-futures",
  "wasm-bindgen-test",
  "web-sys",
 ]
