@@ -10,3 +10,5 @@ homepage = "https://github.com/simon-bourne/arpy"
 repository = "https://github.com/simon-bourne/arpy"
 readme = "../../README.md"
 license = "MIT OR Apache-2.0"
+
+# TODO: Use `[workspace.depencencies]`
