@@ -31,7 +31,7 @@ use async_trait::async_trait;
 use bincode::Options;
 use futures::{stream_select, Sink, SinkExt, Stream, StreamExt, TryStreamExt};
 use pin_project::pin_project;
-use reqwasm::websocket::{futures::WebSocket, Message, WebSocketError};
+use reqwasm::websocket::{futures::WebSocket, Message};
 use serde::{de::DeserializeOwned, Serialize};
 use slotmap::{DefaultKey, SlotMap};
 use tokio::sync::{mpsc, oneshot};
@@ -58,6 +58,7 @@ impl Connection {
     /// Constructor.
     pub fn new(ws: WebSocket) -> Self {
         let (ws_sink, ws_stream) = ws.split();
+        let ws_sink = ws_sink.sink_map_err(Error::send);
         let ws_stream = ws_stream.map_err(Error::receive);
 
         // TODO: Benchmark and see if make capacity > 1 improves perf.
@@ -239,7 +240,7 @@ type ClientIdMap<T> = Rc<RefCell<SlotMap<DefaultKey, T>>>;
 impl BackgroundWebsocket {
     async fn run(
         mut self,
-        mut ws_sink: impl Sink<Message, Error = WebSocketError> + Unpin,
+        mut ws_sink: impl Sink<Message, Error = Error> + Unpin,
         ws_stream: impl Stream<Item = Result<Message, Error>> + Unpin,
         to_send: ReceiverStream<SendMsg>,
     ) {
@@ -322,13 +323,12 @@ impl BackgroundWebsocket {
 
     async fn send<MessageSink>(&mut self, ws: &mut MessageSink, msg: SendMsg) -> Result<(), Error>
     where
-        MessageSink: Sink<Message, Error = WebSocketError> + Unpin,
+        MessageSink: Sink<Message, Error = Error> + Unpin,
     {
         match msg {
             SendMsg::Close => ws.close().await,
             SendMsg::Msg(msg) => ws.send(Message::Bytes(msg)).await,
         }
-        .map_err(Error::send)
     }
 }
 
