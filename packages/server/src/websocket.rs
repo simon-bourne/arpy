@@ -283,7 +283,8 @@ impl WebSocketHandler {
         // the websocket, hence the queue size = 1.
         let (result_sink, result_stream) = mpsc::channel::<Result<Vec<u8>>>(1);
         let result_stream = result_stream.map(Event::Outgoing);
-        let mut events = stream_select!(Box::pin(incoming), result_stream);
+        let incoming = pin!(incoming);
+        let mut events = stream_select!(incoming, result_stream);
 
         while let Some(event) = events.next().await {
             match event {

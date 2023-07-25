@@ -171,7 +171,7 @@ impl<Spawn: Spawner> ConcurrentRpcClient for Connection<Spawn> {
         let sender = self.sender.clone();
 
         self.spawner.spawn_local(async move {
-            let mut updates = Box::pin(updates);
+            let mut updates = pin!(updates);
 
             while let Some(update) = updates.next().await {
                 let mut msg = Self::serialize_msg::<S, _>(client_id, SubscriptionControl::Update);
