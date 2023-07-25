@@ -51,7 +51,7 @@ impl WebSocketRouter {
     pub fn handle<F, FSig>(mut self, f: F) -> Self
     where
         F: FnRemoteBody<FSig> + Send + Sync + 'static,
-        FSig: FnRemote + Send + Sync + 'static,
+        FSig: FnRemote + Send + 'static,
         FSig::Output: Send + 'static,
     {
         let id = FSig::ID.as_bytes().to_vec();
