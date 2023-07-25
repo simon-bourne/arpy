@@ -13,7 +13,7 @@ use futures::{
 use hyper::server::conn::AddrIncoming;
 use tower_http::cors::CorsLayer;
 
-use crate::{Add, AddN, Counter, TryMultiply};
+use crate::{Add, AddN, Counter, TryMultiply, ADD_N_REPLY};
 
 pub async fn add(args: Add) -> i32 {
     args.0 + args.1
@@ -27,12 +27,12 @@ fn sse_stream() -> impl Stream<Item = Result<Counter, Infallible>> {
     stream::iter((0..).map(|i| Ok(Counter(i))))
 }
 
-fn counter(_updates: BoxStream<'static, ()>, args: Counter) -> impl Stream<Item = i32> {
-    stream::iter(args.0..(args.0 + 10))
+fn counter(_updates: BoxStream<'static, ()>, args: Counter) -> ((), impl Stream<Item = i32>) {
+    ((), stream::iter(args.0..(args.0 + 10)))
 }
 
-fn add_n(updates: BoxStream<'static, i32>, args: AddN) -> impl Stream<Item = i32> {
-    updates.map(move |x| x + args.0)
+fn add_n(updates: BoxStream<'static, i32>, args: AddN) -> (String, impl Stream<Item = i32>) {
+    (ADD_N_REPLY.to_string(), updates.map(move |x| x + args.0))
 }
 
 pub fn dev_server(port: u16) -> axum::Server<AddrIncoming, IntoMakeService<Router>> {

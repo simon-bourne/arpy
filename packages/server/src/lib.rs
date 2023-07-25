@@ -44,6 +44,7 @@ where
 pub trait FnSubscriptionBody<Args>
 where
     Args: FnSubscription,
+    Args::InitialReply: Send + Sync + 'static,
     Args::Item: Send + Sync + 'static,
     Args::Update: Send + Sync + 'static,
 {
@@ -54,14 +55,15 @@ where
         &self,
         updates: impl Stream<Item = Args::Update> + Send + 'static,
         args: Args,
-    ) -> Self::Output;
+    ) -> (Args::InitialReply, Self::Output);
 }
 
 impl<Args, Output, F> FnSubscriptionBody<Args> for F
 where
     Args: FnSubscription,
-    F: Fn(BoxStream<'static, Args::Update>, Args) -> Output,
+    F: Fn(BoxStream<'static, Args::Update>, Args) -> (Args::InitialReply, Output),
     Output: Stream<Item = Args::Item> + Send,
+    Args::InitialReply: Send + Sync + 'static,
     Args::Item: Send + Sync + 'static,
     Args::Update: Send + Sync + 'static,
 {
@@ -71,7 +73,7 @@ where
         &self,
         updates: impl Stream<Item = Args::Update> + Send + 'static,
         args: Args,
-    ) -> Self::Output {
+    ) -> (Args::InitialReply, Self::Output) {
         self(Box::pin(updates), args)
     }
 }

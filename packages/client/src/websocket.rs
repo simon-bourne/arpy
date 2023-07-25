@@ -141,7 +141,7 @@ impl<Spawn: Spawner> ConcurrentRpcClient for Connection<Spawn> {
         &self,
         service: S,
         updates: impl Stream<Item = S::Update> + 'static,
-    ) -> Result<SubscriptionStream<S::Item>, Error>
+    ) -> Result<(S::InitialReply, SubscriptionStream<S::Item>), Error>
     where
         S: FnSubscription + 'static,
     {
@@ -162,10 +162,11 @@ impl<Spawn: Spawner> ConcurrentRpcClient for Connection<Spawn> {
 
         let mut subscription_stream = ReceiverStream::new(subscription_stream);
 
-        subscription_stream
+        let initial_reply = subscription_stream
             .next()
             .await
             .ok_or_else(|| Error::receive("Couldn't receive subscription confirmation"))??;
+        let initial_reply = deserialize(&initial_reply.message[initial_reply.payload_offset..])?;
 
         let sender = self.sender.clone();
 
@@ -183,10 +184,13 @@ impl<Spawn: Spawner> ConcurrentRpcClient for Connection<Spawn> {
             }
         });
 
-        Ok(SubscriptionStream {
-            stream: subscription_stream,
-            phantom: PhantomData,
-        })
+        Ok((
+            initial_reply,
+            SubscriptionStream {
+                stream: subscription_stream,
+                phantom: PhantomData,
+            },
+        ))
     }
 }
 

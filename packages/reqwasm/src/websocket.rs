@@ -61,7 +61,7 @@ impl ConcurrentRpcClient for Connection {
         &self,
         service: S,
         updates: impl Stream<Item = S::Update> + 'static,
-    ) -> Result<SubscriptionStream<S::Item>, Error>
+    ) -> Result<(S::InitialReply, SubscriptionStream<S::Item>), Error>
     where
         S: FnSubscription + 'static,
     {

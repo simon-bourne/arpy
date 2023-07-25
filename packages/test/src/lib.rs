@@ -22,6 +22,7 @@ impl FnRemote for TryMultiply {
 pub struct Counter(pub i32);
 
 impl FnSubscription for Counter {
+    type InitialReply = ();
     type Item = i32;
     type Update = ();
 }
@@ -30,8 +31,10 @@ impl FnSubscription for Counter {
 pub struct AddN(pub i32);
 
 impl FnSubscription for AddN {
+    type InitialReply = String;
     type Item = i32;
     type Update = i32;
 }
 
+pub const ADD_N_REPLY: &str = "AddN initialized";
 pub const PORT: u16 = 9090;

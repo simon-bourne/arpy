@@ -6,7 +6,9 @@ use std::{
     collections::HashMap,
     error,
     io::{self, Read, Write},
-    mem, result,
+    mem,
+    pin::pin,
+    result,
     sync::{Arc, RwLock},
 };
 
@@ -69,6 +71,7 @@ impl WebSocketRouter {
     where
         F: FnSubscriptionBody<FSig> + Send + Sync + 'static,
         FSig: FnSubscription + Send + Sync + 'static,
+        FSig::InitialReply: Send + Sync + 'static,
         FSig::Item: Send + Sync + 'static,
         FSig::Update: Send + Sync + 'static,
     {
@@ -116,6 +119,7 @@ impl WebSocketRouter {
     where
         F: FnSubscriptionBody<FSig> + Send + Sync + 'static,
         FSig: FnSubscription + Send + Sync + 'static,
+        FSig::InitialReply: Send + Sync + 'static,
         FSig::Item: Send + Sync + 'static,
         FSig::Update: Send + Sync + 'static,
     {
@@ -158,6 +162,7 @@ impl WebSocketRouter {
     where
         F: FnSubscriptionBody<FSig> + Send + Sync + 'static,
         FSig: FnSubscription + Send + Sync + 'static,
+        FSig::InitialReply: Send + Sync + 'static,
         FSig::Item: Send + Sync + 'static,
         FSig::Update: Send + Sync + 'static,
     {
@@ -172,15 +177,17 @@ impl WebSocketRouter {
             let msg: FSig::Update = deserialize(msg.as_slice()).unwrap();
             msg
         });
-        let mut items = Box::pin(f.run(update_stream, args));
+        let (initial_reply, items) = f.run(update_stream, args);
 
-        let reply = Self::serialize_msg(client_id, &());
+        let reply = Self::serialize_msg(client_id, &initial_reply);
         result_sink
             .send(Ok(reply))
             .await
             .unwrap_or_else(client_disconnected);
 
         spawn(async move {
+            let mut items = pin!(items);
+
             while let Some(item) = items.next().await {
                 let item_bytes = Self::serialize_msg(client_id, &item);
 
