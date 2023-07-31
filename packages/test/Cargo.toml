@@ -5,16 +5,16 @@ edition = { workspace = true }
 publish = false
 
 [dependencies]
-arpy = { path = "../arpy" }
-futures = "0.3.26"
-serde = { version = "1.0.152", features = ["derive"] }
+serde = { workspace = true, features = ["derive"] }
+arpy = { workspace = true }
+futures = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-arpy-server = { path = "../server" }
-arpy-axum = { path = "../axum" }
-axum = { version = "0.6.3", features = ["ws", "headers"] }
-tokio = { version = "1.21.2", default-features = false, features = ["macros"] }
-hyper = "0.14.23"
-tower-http = { version = "0.3.5", features = ["cors"] }
-tracing = "0.1.37"
-tracing-subscriber = "0.3.16"
+arpy-server = { workspace = true }
+arpy-axum = { workspace = true }
+hyper = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+axum = { workspace = true, features = ["ws", "headers"] }
+tokio = { workspace = true, features = ["macros"] }
+tower-http = { workspace = true, features = ["cors"] }

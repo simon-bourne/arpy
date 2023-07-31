@@ -17,11 +17,11 @@ categories = [
 ]
 
 [dependencies]
-arpy = { path = "../arpy", version = "0.1.0" }
-bincode = "1.3.3"
-futures = "0.3.25"
-serde = "1.0.152"
-slotmap = { version = "1.0.6", features = ["serde"] }
-thiserror = "1.0.38"
-tokio = { version = "1.25.0", features = ["sync", "rt"] }
-tracing = "0.1.37"
+slotmap = { workspace = true, features = ["serde"] }
+tokio = { workspace = true, features = ["sync", "rt"] }
+arpy = { workspace = true }
+bincode = { workspace = true }
+futures = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }

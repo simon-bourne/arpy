@@ -9,15 +9,12 @@ readme = { workspace = true }
 license = { workspace = true }
 description = "Macros for the Arpy RPC library"
 keywords = ["RPC", "web"]
-categories = [
-    "web-programming",
-    "network-programming",
-]
+categories = ["web-programming", "network-programming"]
 
 [lib]
 proc-macro = true
 
 [dependencies]
-syn = "1.0.86"
-quote = "1.0.15"
-heck = "0.4.0"
+syn = { workspace = true }
+quote = { workspace = true }
+heck = { workspace = true }

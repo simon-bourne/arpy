@@ -17,21 +17,21 @@ categories = [
 ]
 
 [dependencies]
-actix-rt = "2.8.0"
-actix-web = "4.3.0"
-actix-ws = "0.2.5"
-arpy = { path = "../arpy", version = "0.1.0" }
-arpy-server = { path = "../server", version = "0.1.0" }
-ciborium = "0.2.0"
-futures = "0.3.25"
-serde = "1.0.152"
-serde_json = "1.0.91"
-serde_urlencoded = "0.7.1"
-include-doc = "0.1.1"
-tracing = "0.1.37"
+actix-rt = { workspace = true }
+actix-web = { workspace = true }
+actix-ws = { workspace = true }
+arpy = { workspace = true }
+arpy-server = { workspace = true }
+ciborium = { workspace = true }
+futures = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_urlencoded = { workspace = true }
+include-doc = { workspace = true }
+tracing = { workspace = true }
 
 [dev-dependencies]
-arpy-test = { path = "../test" }
-arpy-reqwest = { path = "../reqwest", version = "0.1.0" }
-tokio = { version = "1.21.2", features = ["full"] }
-reqwest = "0.11.14"
+arpy-test = { workspace = true }
+arpy-reqwest = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+reqwest = { workspace = true }

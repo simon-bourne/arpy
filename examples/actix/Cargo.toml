@@ -5,8 +5,8 @@ edition = { workspace = true }
 publish = false
 
 [dependencies]
-actix-web = "4.3.0"
-arpy-actix = { path = "../../packages/actix" }
-arpy-server = { path = "../../packages/server" }
-arpy-example-common = { path = "../common" }
-env_logger = "0.10.0"
+actix-web = { workspace = true }
+arpy-actix = { workspace = true }
+arpy-server = { workspace = true }
+arpy-example-common = { workspace = true }
+env_logger = { workspace = true }

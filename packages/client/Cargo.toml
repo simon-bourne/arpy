@@ -17,16 +17,13 @@ categories = [
 ]
 
 [dependencies]
-arpy = { path = "../arpy", version = "0.1.0" }
-async-trait = "0.1.63"
-bincode = "1.3.3"
-serde = { version = "1.0.152", features = ["derive"] }
-thiserror = "1.0.38"
-futures = "0.3.25"
-tokio = { version = "1.25.0", default-features = false, features = [
-    "macros",
-    "sync",
-] }
-pin-project = "1.0.12"
-slotmap = { version = "1.0.6", features = ["serde"] }
-tokio-stream = "0.1.11"
+serde = { workspace = true, features = ["derive"] }
+tokio = { workspace = true, features = ["macros", "sync"] }
+slotmap = { workspace = true, features = ["serde"] }
+arpy = { workspace = true }
+async-trait = { workspace = true }
+bincode = { workspace = true }
+thiserror = { workspace = true }
+futures = { workspace = true }
+pin-project = { workspace = true }
+tokio-stream = { workspace = true }

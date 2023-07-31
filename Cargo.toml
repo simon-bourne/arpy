@@ -11,4 +11,51 @@ repository = "https://github.com/simon-bourne/arpy"
 readme = "../../README.md"
 license = "MIT OR Apache-2.0"
 
-# TODO: Use `[workspace.depencencies]`
+[workspace.dependencies]
+arpy = { path = "packages/arpy", version = "0.1.0" }
+arpy-actix = { path = "packages/actix", version = "0.1.0" }
+arpy-axum = { path = "packages/axum", version = "0.1.0" }
+arpy-client = { path = "packages/client", version = "0.1.0" }
+arpy-macros = { path = "packages/macros", version = "0.1.0" }
+arpy-reqwest = { path = "packages/reqwest", version = "0.1.0" }
+arpy-reqwasm = { path = "packages/reqwasm", version = "0.1.0" }
+arpy-server = { path = "packages/server", version = "0.1.0" }
+arpy-test = { path = "packages/test" }
+
+arpy-example-common = { path = "examples/common" }
+
+actix-rt = "2.8.0"
+actix-web = "4.3.0"
+actix-ws = "0.2.5"
+anyhow = "1.0.69"
+async-trait = "0.1.63"
+axum = "0.6.3"
+bincode = "1.3.3"
+ciborium = "0.2.0"
+console_error_panic_hook = "0.1.7"
+env_logger = "0.10.0"
+futures = "0.3.25"
+gloo-console = "0.2.3"
+gloo-net = "0.3.0"
+heck = "0.4.0"
+hyper = "0.14.23"
+include-doc = "0.1.1"
+js-sys = "0.3.60"
+pin-project = "1.0.12"
+quote = "1.0.15"
+reqwasm = "0.5.0"
+reqwest = "0.11.14"
+serde = "1.0.152"
+serde_json = "1.0.91"
+serde_urlencoded = "0.7.1"
+slotmap = "1.0.6"
+syn = "1.0.86"
+thiserror = "1.0.38"
+tokio = "1.25.0"
+tokio-stream = "0.1.11"
+tower-http = "0.3.5"
+tracing = "0.1.37"
+tracing-subscriber = "0.3.16"
+wasm-bindgen-futures = "0.4.34"
+wasm-bindgen-test = "0.3.33"
+web-sys = "0.3.61"
