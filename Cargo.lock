@@ -276,7 +276,7 @@ checksum = "3b13c32d80ecc7ab747b80c3784bce54ee8a7a0cc4fbda9bf4cda2cf6fe90854"
 
 [[package]]
 name = "arpy"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "arpy-macros",
  "async-trait",
@@ -288,7 +288,7 @@ dependencies = [
 
 [[package]]
 name = "arpy-actix"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "actix-rt",
  "actix-web",
@@ -310,7 +310,7 @@ dependencies = [
 
 [[package]]
 name = "arpy-axum"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "arpy",
  "arpy-server",
@@ -329,7 +329,7 @@ dependencies = [
 
 [[package]]
 name = "arpy-client"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "arpy",
  "async-trait",
@@ -345,7 +345,7 @@ dependencies = [
 
 [[package]]
 name = "arpy-example-actix"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "actix-web",
  "arpy-actix",
@@ -356,7 +356,7 @@ dependencies = [
 
 [[package]]
 name = "arpy-example-axum"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "arpy",
  "arpy-axum",
@@ -371,7 +371,7 @@ dependencies = [
 
 [[package]]
 name = "arpy-example-common"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "arpy",
  "futures",
@@ -381,7 +381,7 @@ dependencies = [
 
 [[package]]
 name = "arpy-example-reqwasm"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "arpy",
@@ -395,7 +395,7 @@ dependencies = [
 
 [[package]]
 name = "arpy-example-reqwest"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "arpy",
@@ -407,7 +407,7 @@ dependencies = [
 
 [[package]]
 name = "arpy-macros"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "heck",
  "quote",
@@ -416,7 +416,7 @@ dependencies = [
 
 [[package]]
 name = "arpy-reqwasm"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "arpy",
  "arpy-client",
@@ -440,7 +440,7 @@ dependencies = [
 
 [[package]]
 name = "arpy-reqwest"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "arpy",
  "arpy-test",
@@ -454,7 +454,7 @@ dependencies = [
 
 [[package]]
 name = "arpy-server"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "arpy",
  "bincode",
@@ -468,7 +468,7 @@ dependencies = [
 
 [[package]]
 name = "arpy-test"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "arpy",
  "arpy-axum",

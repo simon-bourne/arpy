@@ -3,7 +3,7 @@ members = ["packages/*", "examples/*"]
 resolver = "2"
 
 [workspace.package]
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["Simon Bourne <simonbourne@gmail.com>"]
 homepage = "https://github.com/simon-bourne/arpy"
@@ -12,14 +12,14 @@ readme = "../../README.md"
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
-arpy = { path = "packages/arpy", version = "0.1.0" }
-arpy-actix = { path = "packages/actix", version = "0.1.0" }
-arpy-axum = { path = "packages/axum", version = "0.1.0" }
-arpy-client = { path = "packages/client", version = "0.1.0" }
-arpy-macros = { path = "packages/macros", version = "0.1.0" }
-arpy-reqwest = { path = "packages/reqwest", version = "0.1.0" }
-arpy-reqwasm = { path = "packages/reqwasm", version = "0.1.0" }
-arpy-server = { path = "packages/server", version = "0.1.0" }
+arpy = { path = "packages/arpy", version = "0.2.0" }
+arpy-actix = { path = "packages/actix", version = "0.2.0" }
+arpy-axum = { path = "packages/axum", version = "0.2.0" }
+arpy-client = { path = "packages/client", version = "0.2.0" }
+arpy-macros = { path = "packages/macros", version = "0.2.0" }
+arpy-reqwest = { path = "packages/reqwest", version = "0.2.0" }
+arpy-reqwasm = { path = "packages/reqwasm", version = "0.2.0" }
+arpy-server = { path = "packages/server", version = "0.2.0" }
 arpy-test = { path = "packages/test" }
 
 arpy-example-common = { path = "examples/common" }
