@@ -16,7 +16,7 @@ categories = [
 ]
 
 [dependencies]
-serde = { version = "1.0.152", features = ["derive"] }
+serde = { workspace = true, features = ["derive"] }
 arpy = { workspace = true }
 async-trait = { workspace = true }
 ciborium = { workspace = true }
@@ -25,4 +25,4 @@ thiserror = { workspace = true }
 
 [dev-dependencies]
 arpy-test = { workspace = true }
-tokio = { version = "1.24.2", features = ["macros", "process"] }
+tokio = { workspace = true, features = ["macros", "process"] }

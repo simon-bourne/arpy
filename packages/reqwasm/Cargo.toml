@@ -17,9 +17,9 @@ categories = [
 ]
 
 [dependencies]
-serde = { version = "1.0.152", features = ["derive"] }
-tokio = { version = "1.25.0", features = ["macros", "sync"] }
-web-sys = { version = "0.3.61", features = ["MessageEvent"] }
+serde = { workspace = true, features = ["derive"] }
+tokio = { workspace = true, features = ["macros", "sync"] }
+web-sys = { workspace = true, features = ["MessageEvent"] }
 arpy = { workspace = true }
 arpy-client = { workspace = true }
 async-trait = { workspace = true }
