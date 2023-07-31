@@ -8,7 +8,7 @@ edition = "2021"
 authors = ["Simon Bourne <simonbourne@gmail.com>"]
 homepage = "https://github.com/simon-bourne/arpy"
 repository = "https://github.com/simon-bourne/arpy"
-readme = "../../README.md"
+readme = "README.md"
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
