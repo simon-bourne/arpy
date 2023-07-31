@@ -27,6 +27,7 @@ jobs:
         crate: wasm-pack
         version: 0.12.1
     - run: cargo clippy --all-targets -- -D warnings -D clippy::all
+    - run: cargo build --all-targets
     - run: cargo doc
     - run: cargo test
 
