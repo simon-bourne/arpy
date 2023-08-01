@@ -1311,18 +1311,18 @@ dependencies = [
 
 [[package]]
 name = "include-doc"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3782fa901e83e32d1224307edc399edb630b9352e9f64226b60484d8973d8f51"
+checksum = "5401488b442bfb8a96d72c168dfe6998e0c7cdb5ddfa2e7be290140699771ca7"
 dependencies = [
  "include-doc-macro",
 ]
 
 [[package]]
 name = "include-doc-macro"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb0903c04beebcd28fefb3e8626658fed8d30d1efb26ac18d4008c40ee1e3a8b"
+checksum = "8bce1e1bffdd80bfc66acbe71450a16d3a245da7378caff63a480948e82a1142"
 dependencies = [
  "itertools 0.11.0",
  "proc-macro-error",
