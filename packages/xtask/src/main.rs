@@ -12,24 +12,19 @@ fn main() {
 
 fn ci() -> CI {
     let mut workflow = CI::new();
+    let stable_rustc = || rust_toolchain("1.73").minimal().default().wasm();
+    let wasm_pack = || install("wasm-pack", "0.12.1");
+
     for platform in Platform::latest() {
         workflow.add_job(
-            Tasks::new(
-                "tests",
-                platform,
-                rust_toolchain("1.73").minimal().default().clippy().wasm(),
-            )
-            .step(install("wasm-pack", "0.12.1"))
-            .tests(),
+            Tasks::new("tests", platform, stable_rustc().clippy())
+                .setup(wasm_pack())
+                .tests(),
         );
         workflow.add_job(
-            Tasks::new(
-                "release-tests",
-                platform,
-                rust_toolchain("1.73").minimal().default().wasm(),
-            )
-            .step(install("wasm-pack", "0.12.1"))
-            .release_tests(),
+            Tasks::new("release-tests", platform, stable_rustc())
+                .setup(wasm_pack())
+                .release_tests(),
         );
     }
 

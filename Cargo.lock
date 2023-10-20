@@ -3365,7 +3365,7 @@ dependencies = [
 [[package]]
 name = "xtask-base"
 version = "0.1.0"
-source = "git+https://github.com/simon-bourne/rust-xtask-base#0bdc4e42bd4549e63a62dd9a70248e3054f30bde"
+source = "git+https://github.com/simon-bourne/rust-xtask-base#c22ff67be9ecab2e0c3a4117d5c061db458e0c45"
 dependencies = [
  "cargo_metadata",
  "chrono",
