@@ -24,7 +24,7 @@ pub async fn try_multiply(args: TryMultiply) -> Result<i32, ()> {
 }
 
 fn sse_stream() -> impl Stream<Item = Result<Counter, Infallible>> {
-    stream::iter((0..).map(|i| Ok(Counter(i))))
+    stream::iter((0..10).map(|i| Ok(Counter(i))))
 }
 
 fn counter(_updates: BoxStream<'static, ()>, args: Counter) -> ((), impl Stream<Item = i32>) {

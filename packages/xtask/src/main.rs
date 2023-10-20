@@ -22,6 +22,15 @@ fn ci() -> CI {
             .step(install("wasm-pack", "0.12.1"))
             .tests(),
         );
+        workflow.add_job(
+            Tasks::new(
+                "release-tests",
+                platform,
+                rust_toolchain("1.73").minimal().default().wasm(),
+            )
+            .step(install("wasm-pack", "0.12.1"))
+            .release_tests(),
+        );
     }
 
     workflow.standard_lints("nightly-2023-10-14", "0.1.43")

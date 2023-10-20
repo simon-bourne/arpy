@@ -21,6 +21,19 @@ jobs:
     - run: cargo test
     - run: cargo build --all-targets
     - run: cargo doc
+  release-tests-ubuntu-latest:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: ructions/toolchain@v2
+      with:
+        toolchain: 1.73
+        profile: minimal
+        default: true
+        targets: wasm32-unknown-unknown
+    - uses: Swatinem/rust-cache@v2
+    - run: cargo install wasm-pack --locked --version 0.12.1
+    - run: cargo test --benches --tests --release
   tests-macos-latest:
     runs-on: macos-latest
     steps:
@@ -39,6 +52,19 @@ jobs:
     - run: cargo test
     - run: cargo build --all-targets
     - run: cargo doc
+  release-tests-macos-latest:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: ructions/toolchain@v2
+      with:
+        toolchain: 1.73
+        profile: minimal
+        default: true
+        targets: wasm32-unknown-unknown
+    - uses: Swatinem/rust-cache@v2
+    - run: cargo install wasm-pack --locked --version 0.12.1
+    - run: cargo test --benches --tests --release
   tests-windows-latest:
     runs-on: windows-latest
     steps:
@@ -57,6 +83,19 @@ jobs:
     - run: cargo test
     - run: cargo build --all-targets
     - run: cargo doc
+  release-tests-windows-latest:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: ructions/toolchain@v2
+      with:
+        toolchain: 1.73
+        profile: minimal
+        default: true
+        targets: wasm32-unknown-unknown
+    - uses: Swatinem/rust-cache@v2
+    - run: cargo install wasm-pack --locked --version 0.12.1
+    - run: cargo test --benches --tests --release
   lints-ubuntu-latest:
     runs-on: ubuntu-latest
     steps:
