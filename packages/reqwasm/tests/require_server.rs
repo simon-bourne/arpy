@@ -8,6 +8,9 @@ use wasm_bindgen_test::{wasm_bindgen_test, wasm_bindgen_test_configure};
 
 wasm_bindgen_test_configure!(run_in_browser);
 
+// TODO: Subscription tests (SSE and Websockets) are hanging in release mode,
+// and sometimes receive messages out of order (even websockets).
+
 #[wasm_bindgen_test]
 async fn simple_http() {
     let connection = http::Connection::new(&server_url("http", "http"));

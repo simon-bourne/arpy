@@ -59,3 +59,4 @@ tracing-subscriber = "0.3.16"
 wasm-bindgen-futures = "0.4.34"
 wasm-bindgen-test = "0.3.33"
 web-sys = "0.3.61"
+xtask-base = { git = "https://github.com/simon-bourne/rust-xtask-base" }
