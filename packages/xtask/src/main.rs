@@ -18,15 +18,15 @@ fn ci() -> CI {
     for platform in Platform::latest() {
         workflow.add_job(
             Tasks::new("tests", platform, stable_rustc().clippy())
-                .setup(wasm_pack())
-                .tests(),
+                .step(wasm_pack())
+                .tests(&[]),
         );
         workflow.add_job(
             Tasks::new("release-tests", platform, stable_rustc())
-                .setup(wasm_pack())
-                .release_tests(),
+                .step(wasm_pack())
+                .release_tests(&[]),
         );
     }
 
-    workflow.standard_lints("nightly-2023-10-14", "0.1.43")
+    workflow.standard_lints("nightly-2023-10-14", "0.1.43", &[])
 }
