@@ -19,12 +19,13 @@ fn ci() -> CI {
         workflow.add_job(
             Tasks::new("tests", platform, stable_rustc().clippy())
                 .step(wasm_pack())
-                .tests(&[]),
+                .codegen()
+                .tests(None),
         );
         workflow.add_job(
             Tasks::new("release-tests", platform, stable_rustc())
                 .step(wasm_pack())
-                .release_tests(&[]),
+                .release_tests(None),
         );
     }
 
